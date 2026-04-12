@@ -415,7 +415,38 @@ body{font-family:var(--font);background:var(--bg);color:var(--text-p);min-height
 </div>
 </div>
 
+<!-- ═══ GENERAL CONFIRM MODAL ═══ -->
+<div class="modal-overlay" id="modal-confirm" onclick="closeModal(event,'modal-confirm')">
+<div class="modal" onclick="event.stopPropagation()" style="max-height:50dvh">
+  <div class="modal-handle"></div>
+  <h2 id="confirm-title">确认</h2>
+  <p id="confirm-msg" style="font-size:14px;color:var(--text-s);margin-bottom:20px;line-height:1.6;white-space:pre-line"></p>
+  <div style="display:flex;gap:10px">
+    <button class="qbtn" style="flex:1" onclick="confirmResolve(false)">取消</button>
+    <button class="del-btn" style="flex:1;margin-top:0" id="confirm-ok-btn" onclick="confirmResolve(true)">确定</button>
+  </div>
+</div>
+</div>
+
 <script>
+// ═══════════════════════════════
+//  CUSTOM CONFIRM (replaces native confirm)
+// ═══════════════════════════════
+let _confirmCb=null;
+function showConfirm(msg,onOk,title){
+  document.getElementById('confirm-title').textContent=title||'确认';
+  document.getElementById('confirm-msg').textContent=msg;
+  document.getElementById('modal-confirm').classList.add('show');
+  _confirmCb=onOk||null;
+}
+function confirmResolve(ok){
+  document.getElementById('modal-confirm').classList.remove('show');
+  if(ok&&_confirmCb){const cb=_confirmCb;_confirmCb=null;cb()}
+  _confirmCb=null;
+}
+window.showConfirm=showConfirm;
+window.confirmResolve=confirmResolve;
+
 // ═══════════════════════════════
 //  DATA
 // ═══════════════════════════════
@@ -453,7 +484,7 @@ const CAT_COLORS={
 
 const P_NAMES={alipay:'支付宝',wechat:'微信支付',bank_cmb:'招商银行',bank_icbc:'工商银行',bank_abc:'农业银行',bank_boc:'中国银行',bank_ccb:'建设银行',cash:'现金',credit:'信用卡',invest:'理财/基金',custom:'自定义'};
 const P_ICONS={alipay:'💙',wechat:'💚',bank_cmb:'🏦',bank_icbc:'🏦',bank_abc:'🏦',bank_boc:'🏦',bank_ccb:'🏦',cash:'💵',credit:'💳',invest:'📊',custom:'💰'};
-const ASSET_ICONS=['💙','💚','🏦','💵','💳','📊','💰','🪙','📱','💎','🏠','🚗','📦','🎯','🔑','💎','🪙','📈','🎁','⭐','🔔','💎'];
+const ASSET_ICONS=['💙','💚','🏦','💵','💳','📊','💰','🪙','📱','💎','🏠','🚗','📦','🎯','🔑','📈','🎁','⭐','🔔'];
 const CAT_ICONS=['🍜','🚇','🛍️','🏠','🎮','💊','📚','💇','👥','📌','💼','🎁','📈','💻','🧧','💰','☕','🛵','🚕','🚌','⛽','👔','📱','🧴','💡','🏢','✈️','🎬','⚽','🏥','🧬','📖','🎓','🏋️','🍻','⏰','🏅','📊','💹','🏦','🍽️','🎁'];
 const AVATAR_OPTIONS=['🧑','👩','👨','👧','👦','🧔','👩‍🦰','👨‍🦱','👩‍🦳','🧙','🤖','🐱','🐶','🦊','🐼','🦁','🐸','🐧','🦄','🌟','😎','🎭'];
 
@@ -652,13 +683,14 @@ function openAddModal(type){
 
 function deleteEditingRecord(){
   if(!editingId)return;
-  if(confirm('确定删除此记录？')){
+  showConfirm('确定删除此记录？',()=>{
     DB.records=DB.records.filter(x=>x.id!==editingId);
     editingId=null;saveDB();
     document.getElementById('modal-add').classList.remove('show');
     renderAll();
-  }
+  });
 }
+window.deleteEditingRecord=deleteEditingRecord;
 
 function closeModal(e,id){if(e.target===document.getElementById(id))document.getElementById(id).classList.remove('show')}
 function setType(t){curType=t;curCat=null;curSub=null;updateTypeBtns();renderCatGrid();document.getElementById('subcat-area').innerHTML=''}
@@ -691,7 +723,8 @@ function saveSubcat(){
   if(!name||!curCat)return;
   const cat=findCat(curType,curCat);if(!cat.subs)cat.subs=[];
   cat.subs.push({id:'c'+Date.now().toString(36),icon:subcatIconVal,label:name});saveDB();
-  document.getElementById('modal-subcat').classList.remove('show');renderSubcats();
+  document.getElementById('modal-subcat').classList.remove('show');
+  renderCatGrid();renderSubcats();
 }
 
 function saveRecord(){
@@ -1098,13 +1131,15 @@ function saveAsset(){
 
 function deleteEditingAsset(){
   const asset=DB.assets.find(a=>a.month===assetViewMonth);if(!asset||editingAssetIdx<0)return;
-  if(confirm('删除此账户？')){asset.accounts.splice(editingAssetIdx,1);editingAssetIdx=-1;saveDB();document.getElementById('modal-asset').classList.remove('show');renderAssets()}
+  showConfirm('删除此账户？',()=>{asset.accounts.splice(editingAssetIdx,1);editingAssetIdx=-1;saveDB();document.getElementById('modal-asset').classList.remove('show');renderAssets()});
 }
+window.deleteEditingAsset=deleteEditingAsset;
 
 function delAsset(idx){
   const asset=DB.assets.find(a=>a.month===assetViewMonth);if(!asset)return;
-  if(confirm('删除此账户？')){asset.accounts.splice(idx,1);saveDB();renderAssets()}
+  showConfirm('删除此账户？',()=>{asset.accounts.splice(idx,1);saveDB();renderAssets()});
 }
+window.delAsset=delAsset;
 
 // ═══════════════════════════════
 //  ICON PICKER
@@ -1209,7 +1244,7 @@ function renderCatMgmt(){
     <button class="tab-btn${catMgmtType==='income'?' active':''}" onclick="catMgmtType='income';renderCatMgmt()">收入分类</button>
   </div>`;
   html+=`<div class="card"><div class="card-t">${catMgmtType==='expense'?'支出':'收入'}分类</div>`;
-  getCats(catMgmtType).forEach(c=>{
+  getCats(catMgmtType).forEach((c,i)=>{
     html+=`<div class="cat-mgmt-item" onclick="renderCatDetail('${catMgmtType}','${c.id}');showSubpage('sp-catdetail')">
       <div class="cm-icon">${c.icon}</div><div class="cm-name">${c.label}</div>
       <div class="cm-count">${c.subs?.length||0}个子类</div><div class="cm-arrow">›</div>
@@ -1232,6 +1267,7 @@ function renderCatDetail(type,cid){
       <div class="cm-icon">${c.icon}</div><div class="cm-name">${c.label}</div><div class="cm-arrow">更换图标 ›</div>
     </div>
   </div>`;
+  html+=`<div style="margin:0 0 14px"><button class="del-btn" onclick="deleteCat('${type}','${cid}')">删除此分类</button></div>`;
   html+=`<div class="card"><div class="card-t">子分类</div>`;
   (c.subs||[]).forEach((s,i)=>{
     html+=`<div class="cat-mgmt-item">
@@ -1259,8 +1295,24 @@ function changeSubIcon(type,cid,idx){
 
 function deleteSubcat(type,cid,idx){
   const c=findCat(type,cid);if(!c||!c.subs[idx])return;
-  if(confirm(`删除子分类"${c.subs[idx].label}"？`)){c.subs.splice(idx,1);saveDB();renderCatDetail(type,cid)}
+  showConfirm('删除子分类"'+c.subs[idx].label+'"？',()=>{c.subs.splice(idx,1);saveDB();renderCatDetail(type,cid)});
 }
+
+function deleteCat(type,cid){
+  const c=findCat(type,cid);if(!c)return;
+  const subCount=c.subs?.length||0;
+  const used=DB.records.some(r=>r.type===type&&r.cat===cid);
+  let msg='确定删除分类"'+c.label+'"？';
+  if(subCount>0)msg='分类"'+c.label+'"下还有 '+subCount+' 个子分类，删除后子分类也会一并清除。确定删除？';
+  if(used)msg+='\n（已有记账记录使用此分类，记录不会删除但会显示为"未知"）';
+  showConfirm(msg,()=>{
+    const cats=DB.categories[type];
+    const idx=cats.findIndex(x=>x.id===cid);
+    if(idx>=0){cats.splice(idx,1);saveDB();renderCatMgmt();showSubpage('sp-catmgmt')}
+  });
+}
+window.deleteSubcat=deleteSubcat;
+window.deleteCat=deleteCat;
 
 let detailSubcatIcon='📌';
 function addSubcatToDetail(){
