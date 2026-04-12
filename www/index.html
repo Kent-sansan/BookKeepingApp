@@ -389,7 +389,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text-p);min-height
 <div class="modal-overlay" id="modal-cat-icon" onclick="closeModal(event,'modal-cat-icon')">
 <div class="modal" onclick="event.stopPropagation()">
   <div class="modal-handle"></div>
-  <h2>更换图标</h2>
+  <h2>编辑分类</h2>
+  <div id="icon-name-field" style="margin-bottom:14px">
+    <div style="font-size:12px;color:var(--text-s);margin-bottom:6px">名称</div>
+    <input id="icon-name-input" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text-p);font-family:var(--font);font-size:14px;outline:none" placeholder="分类名称">
+  </div>
   <div class="icon-grid" id="cat-icon-grid"></div>
   <button class="sub-btn" onclick="confirmCatIcon()">确定</button>
 </div>
@@ -619,7 +623,12 @@ function dpSelect(col,v,el){
 // ═══════════════════════════════
 //  RENDER HOME
 // ═══════════════════════════════
+// ── Infinite scroll state ──
+let homeBatch=0;
+const HOME_BATCH_SIZE=20;
+
 function renderHome(){
+  homeBatch=0;
   const now=new Date(),ym=curMonth();
   document.getElementById('h-date').textContent=`${now.getFullYear()}年${now.getMonth()+1}月 · 周${['日','一','二','三','四','五','六'][now.getDay()]}`;
   const mr=DB.records.filter(r=>r.date.startsWith(ym));
@@ -628,10 +637,19 @@ function renderHome(){
   document.getElementById('balance').textContent=(inc-exp).toFixed(2);
   document.getElementById('m-inc').textContent=`+${inc.toFixed(0)}`;
   document.getElementById('m-exp').textContent=`-${exp.toFixed(0)}`;
+  renderHomeBatch(true);
+}
+
+function renderHomeBatch(reset){
+  const el=document.getElementById('rec-list');
+  if(reset){el.innerHTML='';homeBatch=0}
+  const start=homeBatch*HOME_BATCH_SIZE;
+  const batch=DB.records.slice(start,start+HOME_BATCH_SIZE);
+  if(!batch.length&&!homeBatch){el.innerHTML='<div class="empty"><div class="empty-icon">📒</div><div class="empty-text">还没有记录</div></div>';return}
   const groups={};
-  DB.records.slice(0,50).forEach(r=>{(groups[r.date]=groups[r.date]||[]).push(r)});
+  batch.forEach(r=>{(groups[r.date]=groups[r.date]||[]).push(r)});
   let html='';
-  Object.entries(groups).slice(0,7).forEach(([date,recs])=>{
+  Object.entries(groups).forEach(([date,recs])=>{
     const d=new Date(date),de=recs.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0);
     const isT=date===today();
     html+=`<div class="rec-group"><div class="rec-date"><span>${isT?'今天':`${d.getMonth()+1}月${d.getDate()}日`}</span><span class="dt">-${de.toFixed(0)}</span></div>`;
@@ -642,7 +660,21 @@ function renderHome(){
     });
     html+='</div>';
   });
-  document.getElementById('rec-list').innerHTML=html||'<div class="empty"><div class="empty-icon">📒</div><div class="empty-text">还没有记录</div></div>';
+  if(batch.length>=HOME_BATCH_SIZE){
+    html+=`<div id="load-more-sentinel" style="text-align:center;padding:16px;color:var(--text-m);font-size:13px">加载更多…</div>`;
+  }else if(homeBatch>0){
+    html+=`<div style="text-align:center;padding:16px;color:var(--text-m);font-size:13px">已显示全部 ${DB.records.length} 条记录</div>`;
+  }
+  el.insertAdjacentHTML('beforeend',html);
+  homeBatch++;
+  // Observe sentinel for next batch
+  const sentinel=document.getElementById('load-more-sentinel');
+  if(sentinel){
+    const obs=new IntersectionObserver(entries=>{
+      if(entries[0].isIntersecting){obs.disconnect();sentinel.remove();renderHomeBatch(false)}
+    },{rootMargin:'100px'});
+    obs.observe(sentinel);
+  }
 }
 
 // ═══════════════════════════════
@@ -1067,9 +1099,11 @@ function renderAssetChart(months){
 function changeAssetIcon(idx){
   const asset=DB.assets.find(a=>a.month===assetViewMonth);if(!asset||!asset.accounts[idx])return;
   const cur=asset.accounts[idx].icon||P_ICONS[asset.accounts[idx].platform]||'💰';
+  iconModalCtx=null;
   renderIconPicker('cat-icon-grid',ASSET_ICONS,cur,v=>{
     asset.accounts[idx].icon=v;saveDB();renderAssets();
   });
+  document.getElementById('icon-name-field').style.display='none';
   document.getElementById('modal-cat-icon').querySelector('h2').textContent='更换图标';
   document.getElementById('modal-cat-icon').classList.add('show');
 }
@@ -1166,7 +1200,27 @@ function renderIconPicker(containerId,icons,selected,cb){
   }
 }
 
+// ── Icon+Name modal state ──
+let iconModalCtx=null;
+
 function confirmCatIcon(){
+  if(iconModalCtx){
+    const c=findCat(iconModalCtx.type,iconModalCtx.cid);
+    if(c){
+      const newName=document.getElementById('icon-name-input').value.trim();
+      const st=iconPickerState['cat-icon-grid'];
+      const newIcon=st&&st.selected;
+      if(iconModalCtx.idx!==undefined&&c.subs[iconModalCtx.idx]){
+        if(newName)c.subs[iconModalCtx.idx].label=newName;
+        if(newIcon)c.subs[iconModalCtx.idx].icon=newIcon;
+      }else{
+        if(newName)c.label=newName;
+        if(newIcon)c.icon=newIcon;
+      }
+      saveDB();renderCatDetail(iconModalCtx.type,iconModalCtx.cid);
+    }
+    iconModalCtx=null;
+  }
   document.getElementById('modal-cat-icon').classList.remove('show');
 }
 
@@ -1230,9 +1284,12 @@ function renderAppearance(){
 
 // Avatar picker
 function openAvatarPicker(){
+  iconModalCtx=null;
   renderIconPicker('cat-icon-grid',AVATAR_OPTIONS,DB.profile.avatar,v=>{
     DB.profile.avatar=v;saveDB();renderProfile();
   });
+  document.getElementById('icon-name-field').style.display='none';
+  document.getElementById('modal-cat-icon').querySelector('h2').textContent='选择头像';
   document.getElementById('modal-cat-icon').classList.add('show');
 }
 
@@ -1264,14 +1321,16 @@ function renderCatDetail(type,cid){
   document.getElementById('catdetail-title').textContent=c.label;
   let html=`<div class="card">
     <div class="cat-mgmt-item" onclick="changeCatIcon('${type}','${cid}')">
-      <div class="cm-icon">${c.icon}</div><div class="cm-name">${c.label}</div><div class="cm-arrow">更换图标 ›</div>
+      <div class="cm-icon">${c.icon}</div>
+      <div class="cm-name">${c.label}</div>
+      <div class="cm-arrow">编辑 ›</div>
     </div>
   </div>`;
   html+=`<div style="margin:0 0 14px"><button class="del-btn" onclick="deleteCat('${type}','${cid}')">删除此分类</button></div>`;
   html+=`<div class="card"><div class="card-t">子分类</div>`;
   (c.subs||[]).forEach((s,i)=>{
-    html+=`<div class="cat-mgmt-item">
-      <div class="cm-icon" onclick="event.stopPropagation();changeSubIcon('${type}','${cid}',${i})">${s.icon}</div>
+    html+=`<div class="cat-mgmt-item" onclick="changeSubIcon('${type}','${cid}',${i})">
+      <div class="cm-icon">${s.icon}</div>
       <div class="cm-name">${s.label}</div>
       <button class="ai-del" onclick="event.stopPropagation();deleteSubcat('${type}','${cid}',${i})">×</button>
     </div>`;
@@ -1283,13 +1342,21 @@ function renderCatDetail(type,cid){
 
 function changeCatIcon(type,cid){
   const c=findCat(type,cid);if(!c)return;
-  renderIconPicker('cat-icon-grid',CAT_ICONS,c.icon,v=>{c.icon=v;saveDB();renderCatDetail(type,cid)});
+  iconModalCtx={type,cid};
+  document.getElementById('icon-name-input').value=c.label;
+  document.getElementById('icon-name-field').style.display='';
+  renderIconPicker('cat-icon-grid',CAT_ICONS,c.icon,v=>{});
+  document.getElementById('modal-cat-icon').querySelector('h2').textContent='编辑分类';
   document.getElementById('modal-cat-icon').classList.add('show');
 }
 
 function changeSubIcon(type,cid,idx){
   const c=findCat(type,cid);if(!c||!c.subs[idx])return;
-  renderIconPicker('cat-icon-grid',CAT_ICONS,c.subs[idx].icon,v=>{c.subs[idx].icon=v;saveDB();renderCatDetail(type,cid)});
+  iconModalCtx={type,cid,idx};
+  document.getElementById('icon-name-input').value=c.subs[idx].label;
+  document.getElementById('icon-name-field').style.display='';
+  renderIconPicker('cat-icon-grid',CAT_ICONS,c.subs[idx].icon,v=>{});
+  document.getElementById('modal-cat-icon').querySelector('h2').textContent='编辑子分类';
   document.getElementById('modal-cat-icon').classList.add('show');
 }
 
@@ -1364,19 +1431,120 @@ function saveSubcat(){
 }
 
 // Data subpage - CSV only
+// ═══════════════════════════════
+//  DATA PAGE — 导入导出
+// ═══════════════════════════════
 function renderDataPage(){
-  let html=`<div class="card">
-    <div class="card-t">导入导出</div>
-    <div style="margin-bottom:10px"><button class="qbtn" style="width:100%" onclick="exportCSV()">📊 导出 CSV</button></div>
-    <div style="font-size:11px;color:var(--text-m);margin-bottom:14px">CSV 格式可直接用 Excel 打开编辑</div>
-    <div><input type="file" id="import-file" accept=".csv" style="display:none" onchange="importCSV(event)"><button class="qbtn" style="width:100%" onclick="document.getElementById('import-file').click()">📂 导入 CSV</button></div>
-  </div>`;
-  document.getElementById('data-content').innerHTML=html;
+  const el=document.getElementById('data-content');
+  el.innerHTML=`
+    <div class="card">
+      <div class="card-t">导出</div>
+      <button class="qbtn" style="width:100%;margin-bottom:10px" id="exp-csv">📊 导出 CSV（Excel 可打开）</button>
+      <button class="qbtn" style="width:100%" id="exp-json">🗂️ 导出 JSON（完整备份）</button>
+    </div>
+    <div class="card">
+      <div class="card-t">导入</div>
+      <input type="file" id="imp-file" accept=".csv,.json" style="display:none">
+      <button class="qbtn" style="width:100%" id="imp-btn">📂 导入数据</button>
+      <div style="font-size:11px;color:var(--text-m);margin-top:10px">支持 CSV 和 JSON 格式</div>
+    </div>`;
+  document.getElementById('exp-csv').onclick=doExportCSV;
+  document.getElementById('exp-json').onclick=doExportJSON;
+  document.getElementById('imp-btn').onclick=function(){document.getElementById('imp-file').click()};
+  document.getElementById('imp-file').onchange=doImport;
 }
 
-// ═══════════════════════════════
-//  CLEAR DATA
-// ═══════════════════════════════
+function doExportCSV(){
+  if(!DB.records.length){alert('暂无记录可导出');return}
+  let t='\uFEFF日期,类型,大类,子类,金额,备注\n';
+  DB.records.forEach(r=>{
+    const c=findCat(r.type,r.cat),s=r.sub?findSub(r.type,r.cat,r.sub):null;
+    t+=r.date+','+(r.type==='income'?'收入':'支出')+','+(c?.label||r.cat)+','+(s?.label||'')+','+r.amount+','+(r.note||'')+'\n';
+  });
+  saveFile(t,'记账_'+today()+'.csv','text/csv;charset=utf-8');
+}
+
+function doExportJSON(){
+  saveFile(JSON.stringify(DB,null,2),'记账备份_'+today()+'.json','application/json');
+}
+
+function doImport(evt){
+  const file=evt.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const txt=e.target.result;
+    const name=file.name.toLowerCase();
+    if(name.endsWith('.json')){importJSON(txt)}
+    else{importCSV(txt)}
+  };
+  reader.readAsText(file);
+  evt.target.value='';
+}
+
+function importCSV(txt){
+  try{
+    const lines=txt.split('\n').filter(l=>l.trim());
+    if(lines.length<2){alert('文件为空');return}
+    let n=0;
+    for(let i=1;i<lines.length;i++){
+      const p=lines[i].split(',');
+      if(p.length<5)continue;
+      const date=p[0].trim(),typeStr=p[1].trim(),catLabel=p[2].trim(),subLabel=p[3].trim(),amount=p[4].trim(),note=(p[5]||'').trim();
+      const type=typeStr==='收入'?'income':'expense';
+      const cats=getCats(type);
+      let cat=null,sub=null;
+      for(const c of cats){
+        if(c.label===catLabel){
+          cat=c.id;
+          if(subLabel&&c.subs){for(const s of c.subs){if(s.label===subLabel){sub=s.id;break}}}
+          break;
+        }
+      }
+      if(!cat)continue;
+      DB.records.push({id:genId(),type,cat,sub,amount:parseFloat(amount)||0,note:note,date:date,ts:new Date(date).getTime()});
+      n++;
+    }
+    DB.records.sort(function(a,b){return b.ts-a.ts});
+    saveDB();renderAll();
+    alert('成功导入 '+n+' 条记录');
+  }catch(e){alert('导入失败: '+e.message)}
+}
+
+function importJSON(txt){
+  try{
+    const data=JSON.parse(txt);
+    if(!data.records||!Array.isArray(data.records)){alert('JSON 格式不正确');return}
+    const n=data.records.length;
+    if(!confirm('将导入 '+n+' 条记录，当前 '+DB.records.length+' 条记录会保留（追加）。继续？'))return;
+    data.records.forEach(function(r){DB.records.push(r)});
+    DB.records.sort(function(a,b){return b.ts-a.ts});
+    if(data.assets)DB.assets=data.assets;
+    saveDB();renderAll();
+    alert('成功导入 '+n+' 条记录');
+  }catch(e){alert('导入失败: '+e.message)}
+}
+
+function saveFile(content,filename,mime){
+  // Capacitor Android
+  if(window.Capacitor&&typeof Capacitor.isNativePlatform==='function'&&Capacitor.isNativePlatform()){
+    var Fs=Capacitor.Plugins&&Capacitor.Plugins.Filesystem;
+    var Sh=Capacitor.Plugins&&Capacitor.Plugins.Share;
+    if(Fs&&Sh){
+      Fs.writeFile({path:filename,data:content,directory:'Documents',encoding:'utf8'})
+        .then(function(r){return Sh.share({title:filename,text:'导出文件',url:r.uri})})
+        .catch(function(e){alert('导出失败: '+e.message)});
+      return;
+    }
+  }
+  // Browser
+  var blob=new Blob([content],{type:mime});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download=filename;a.style.display='none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url)},200);
+}
 let clearTimer=null;
 function clearAllData(){
   const btn=document.getElementById('clear-confirm-btn');
@@ -1410,12 +1578,15 @@ function doClearData(){
 //  EXPORT/IMPORT (CSV only)
 // ═══════════════════════════════
 function exportCSV(){
-  let csv='\uFEFF日期,类型,大类,子类,金额,备注\n';
-  DB.records.sort((a,b)=>a.date.localeCompare(b.date)).forEach(r=>{
-    const c=findCat(r.type,r.cat),s=r.sub?findSub(r.type,r.cat,r.sub):null;
-    csv+=`${r.date},${r.type==='income'?'收入':'支出'},${c?.label||r.cat},${s?.label||''},${r.amount},${r.note||''}\n`;
-  });
-  dl(csv,'记账数据_'+today()+'.csv','text/csv;charset=utf-8');
+  try{
+    if(!DB||!DB.records||!DB.records.length){alert('暂无记录可导出');return}
+    let csv='\uFEFF日期,类型,大类,子类,金额,备注\n';
+    DB.records.sort((a,b)=>a.date.localeCompare(b.date)).forEach(r=>{
+      const c=findCat(r.type,r.cat),s=r.sub?findSub(r.type,r.cat,r.sub):null;
+      csv+=`${r.date},${r.type==='income'?'收入':'支出'},${c?.label||r.cat},${s?.label||''},${r.amount},${r.note||''}\n`;
+    });
+    dl(csv,'记账数据_'+today()+'.csv','text/csv;charset=utf-8');
+  }catch(e){alert('导出失败: '+e.message)}
 }
 
 function importCSV(e){
@@ -1446,7 +1617,30 @@ function importCSV(e){
   r.readAsText(f);e.target.value='';
 }
 
-function dl(c,n,t){const b=new Blob([c],{type:t});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=n;a.click();URL.revokeObjectURL(a.href)}
+function dl(c,n,t){
+  try{
+    // Capacitor Android
+    if(window.Capacitor&&typeof Capacitor.isNativePlatform==='function'&&Capacitor.isNativePlatform()){
+      const Fs=Capacitor.Plugins&&Capacitor.Plugins.Filesystem;
+      const Sh=Capacitor.Plugins&&Capacitor.Plugins.Share;
+      if(Fs&&Sh){
+        Fs.writeFile({path:n, data:c, directory:'Documents', encoding:'utf8'})
+          .then(r=>Sh.share({title:n,text:'CSV 数据文件',url:r.uri||undefined}))
+          .catch(e=>alert('导出失败: '+e.message));
+        return;
+      }
+    }
+    // Browser — same as original JSON export
+    const b=new Blob([c],{type:t});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(b);
+    a.download=n;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }catch(e){alert('导出失败: '+e.message);console.error('dl error:',e)}
+}
 
 // ═══════════════════════════════
 //  NAV
