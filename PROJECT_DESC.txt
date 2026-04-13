@@ -1,0 +1,169 @@
+# 记·账 — 项目文件说明
+
+## 项目概述
+适配 Android 16 的智能记账应用，支持分类管理、报表分析、资产管理、数据导出。
+
+---
+
+## 📁 文件结构及说明
+
+```
+expense-tracker/
+│
+├── index.html              ← 📌 核心文件：完整单页应用（HTML+CSS+JS 一体）
+│                               包含所有界面、逻辑、样式，可直接浏览器打开预览
+│
+├── www/
+│   └── index.html          ← Capacitor 打包用的 web 资源（与 index.html 同步）
+│
+├── capacitor.config.json   ← Capacitor 配置文件
+│                               定义：App 名称、包名 com.jizhang.app、
+│                               web 资源目录、Android 专项配置
+│
+├── package.json            ← Node.js 项目配置
+│                               依赖：@capacitor/core、@capacitor/android
+│                               脚本：sync（同步资源）、android（打开 Android Studio）
+│
+├── package-lock.json       ← 依赖版本锁定文件（自动生成，勿手动修改）
+│
+├── README.md               ← 项目说明文档
+│
+├── PROJECT_DESC.txt        ← ⬅ 本文件：各文件作用说明
+│
+├── node_modules/           ← Node.js 依赖包（自动生成，不需要上传 git）
+│
+├── .github/
+│   └── workflows/
+│       └── build.yml       ← GitHub Actions 自动构建配置
+│                               push 到 GitHub 后自动编译 APK
+│
+├── android/                ← ⭐ Android 原生工程（Capacitor 自动生成）
+│   │
+│   ├── app/
+│   │   ├── build.gradle              ← App 级构建配置（版本号、依赖）
+│   │   ├── capacitor.build.gradle    ← Capacitor 插件构建配置
+│   │   └── src/main/
+│   │       ├── AndroidManifest.xml   ← Android 权限和组件声明
+│   │       ├── java/com/jizhang/app/
+│   │       │   └── MainActivity.java ← 主 Activity，启动 webview
+│   │       └── res/
+│   │           ├── values/
+│   │           │   ├── colors.xml    ← 主题颜色定义
+│   │           │   ├── strings.xml   ← 应用名称等字符串
+│   │           │   └── styles.xml    ← 主题样式（透明状态栏/导航栏）
+│   │           ├── drawable/
+│   │           │   └── splash.png    ← 启动闪屏图片
+│   │           ├── mipmap-*/         ← 应用图标（各分辨率）
+│   │           └── xml/
+│   │               └── file_paths.xml← FileProvider 路径配置
+│   │
+│   ├── build.gradle                  ← 项目级构建配置
+│   ├── settings.gradle               ← 项目模块设置
+│   ├── gradle.properties             ← Gradle 属性
+│   ├── variables.gradle              ← SDK 版本变量（compileSdk=36 即 Android 16）
+│   ├── gradlew / gradlew.bat         ← Gradle 构建脚本（Linux/Windows）
+│   └── gradle/                       ← Gradle Wrapper 文件
+│
+└── .gitignore              ← Git 忽略规则（排除 node_modules、build 产物）
+```
+
+---
+
+## 🔧 index.html 内部结构说明
+
+```
+index.html
+│
+├── <style>                 ← 所有 CSS 样式
+│   ├── 主题变量              --bg, --text-p, --accent 等，支持自动/亮/暗三套
+│   ├── 布局组件              .app, .page, .nav, .header, .card 等
+│   ├── 记账弹窗样式           .modal, .cat-grid, .subcat-chip 等
+│   ├── 日期选择器样式         .dp-overlay, .dp-col, .dp-item 等
+│   ├── 报表样式              .chart-bars, .pie-svg, .pie-legend 等
+│   └── 资产样式              .asset-item, .at-bar-wrap 等
+│
+├── <body> HTML 结构
+│   ├── p-home              ← 首页：月度概览 + 快捷记账 + 近期记录
+│   ├── p-report            ← 报表页：月度/年度切换 + 饼图 + 趋势图
+│   ├── p-assets            ← 资产页：账户汇总 + 资产走势
+│   ├── p-profile           ← 我的页：统计 + 主题设置 + 数据导出
+│   ├── nav                 ← 底部导航栏（首页/报表/资产/我的）
+│   ├── modal-add           ← 记账/编辑弹窗
+│   ├── dp-overlay          ← 日期选择器弹窗
+│   ├── modal-asset         ← 添加资产弹窗
+│   └── modal-subcat        ← 添加子分类弹窗
+│
+└── <script>                ← 所有 JavaScript 逻辑
+    ├── 数据层               DB (localStorage), DEFAULT_CATS, saveDB/loadDB
+    ├── 分类管理             getCats, findCat, findSub, catLabel, catColor
+    ├── 日期选择器           openDatePicker, dpSelect, confirmDate
+    ├── 首页渲染             renderHome, editRecord, openAddModal
+    ├── 记账逻辑             saveRecord, deleteEditingRecord, setType, selectCat
+    ├── 报表引擎             renderReport, buildPanel, togglePie, makePie
+    ├── 滑动手势             initSwipe (touch + mouse)
+    ├── 资产管理             renderAssets, renderAssetChart, saveAsset
+    ├── 数据导出             exportCSV, exportJSON, importJSON
+    └── 页面导航             nav, renderAll, seed (初始化演示数据)
+```
+
+---
+
+## 🏗️ 如何构建 APK
+
+### 方式一：GitHub Actions（推荐，无需本地环境）
+1. 在 GitHub 创建仓库
+2. 上传整个项目文件
+3. 推送到 main 分支
+4. GitHub Actions 自动编译
+5. Actions 页面 → Artifacts → 下载 app-debug.apk
+
+### 方式二：本地构建
+```bash
+# 前置要求
+# - Node.js 18+
+# - Java 17 (JDK)
+# - Android SDK (Android Studio)
+
+npm install                  # 安装依赖
+npx cap sync android         # 同步 web 资源到 Android 工程
+cd android
+./gradlew assembleDebug      # 编译 Debug APK
+
+# APK 输出位置：
+# android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+### 方式三：Android Studio
+```bash
+npx cap open android         # 用 Android Studio 打开工程
+# Android Studio 中 Build → Build Bundle(s) / APK(s) → Build APK(s)
+```
+
+---
+
+## 📱 技术栈
+
+| 层级 | 技术 |
+|------|------|
+| 前端框架 | 纯 HTML + CSS + JavaScript（无框架） |
+| 字体 | DM Mono (数字) + Noto Sans SC (中文) |
+| 数据存储 | localStorage (浏览器本地) |
+| 打包方案 | Capacitor 7 → Android 原生 WebView |
+| 目标平台 | Android 16 (API 36)，向下兼容 API 24+ |
+| 构建工具 | Gradle + GitHub Actions |
+
+---
+
+## ✨ 功能清单
+
+- [x] 支出/收入记录（10大类+子分类+自定义）
+- [x] 自定义滚轮日期选择器
+- [x] 点击记录编辑/删除
+- [x] 月度/年度报表切换
+- [x] 支出/收入饼图（大类汇总，独立色板）
+- [x] 趋势柱状图
+- [x] 资产账户管理（支付宝/微信/银行卡等）
+- [x] 资产走势（月度/年度切换+环比百分比）
+- [x] 主题切换（自动/白色/黑色）
+- [x] CSV / JSON 数据导出
+- [x] JSON 数据导入/恢复
