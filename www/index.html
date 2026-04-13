@@ -69,7 +69,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text-p);min-height
 .tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-left:6px}
 .tag-up{background:var(--income-d);color:var(--income)}
 .tag-down{background:var(--expense-d);color:var(--expense)}
-.chart-bars{display:flex;align-items:flex-end;gap:4px;height:120px;padding-top:10px}
+.chart-wrap{display:flex;gap:6px;height:140px}
+.chart-y{display:flex;flex-direction:column;justify-content:space-between;padding:10px 0 16px;min-width:36px}
+.chart-y span{font-family:var(--mono);font-size:9px;color:var(--text-m);text-align:right;line-height:1}
+.chart-bars{flex:1;display:flex;align-items:flex-end;gap:4px;height:100%;padding-top:10px}
+.bar-tip{position:absolute;top:-32px;left:50%;transform:translateX(-50%);background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:4px 8px;font-family:var(--mono);font-size:10px;white-space:nowrap;z-index:5;pointer-events:none;opacity:0;transition:opacity .2s;line-height:1.5;text-align:center}
+.bar-tip.show{opacity:1}
+.bar-tip .tip-exp{color:var(--expense)}.bar-tip .tip-inc{color:var(--income)}
 .cb-wrap{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;position:relative}
 .cb{width:100%;max-width:28px;border-radius:4px 4px 0 0;min-height:2px;transition:height .5s cubic-bezier(.22,1,.36,1)}
 .cb.ebar{background:var(--expense);opacity:.8}.cb.ibar{background:var(--income);opacity:.8}
@@ -118,8 +124,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text-p);min-height
 .asset-total .at-label{font-size:12px;color:var(--text-s);text-transform:uppercase;letter-spacing:1px}
 .asset-total .at-val{font-family:var(--mono);font-size:32px;font-weight:500;margin-top:4px;color:var(--accent)}
 .asset-trend{margin-top:4px;font-size:12px;color:var(--text-s)}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
-.modal-overlay.show{display:flex}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:200;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(0);pointer-events:none;opacity:0;transition:background .3s ease,backdrop-filter .3s ease,opacity .3s ease}
+.modal-overlay.show{background:rgba(0,0,0,.6);backdrop-filter:blur(4px);pointer-events:auto;opacity:1}
 .modal{width:100%;max-width:430px;background:var(--bg-card);border-radius:20px 20px 0 0;padding:20px 20px calc(20px + var(--safe-b));transform:translateY(100%);transition:transform .35s cubic-bezier(.22,1,.36,1);max-height:90dvh;overflow-y:auto}
 .modal-overlay.show .modal{transform:translateY(0)}
 .modal-handle{width:36px;height:4px;background:var(--text-m);border-radius:2px;margin:0 auto 16px}
@@ -165,8 +171,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text-p);min-height
 .empty-icon{font-size:40px;margin-bottom:10px;opacity:.5}
 .empty-text{font-size:14px}
 /* ═══ DATE PICKER ═══ */
-.dp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:250;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
-.dp-overlay.show{display:flex}
+.dp-overlay{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:250;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(0);pointer-events:none;opacity:0;transition:background .3s ease,backdrop-filter .3s ease,opacity .3s ease}
+.dp-overlay.show{background:rgba(0,0,0,.6);backdrop-filter:blur(4px);pointer-events:auto;opacity:1}
 .dp-modal{width:100%;max-width:430px;background:var(--bg-card);border-radius:20px 20px 0 0;padding:16px 20px calc(16px + var(--safe-b));transform:translateY(100%);transition:transform .35s cubic-bezier(.22,1,.36,1)}
 .dp-overlay.show .dp-modal{transform:translateY(0)}
 .dp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
@@ -777,13 +783,24 @@ function saveRecord(){
 // ═══════════════════════════════
 //  REPORT
 // ═══════════════════════════════
-let rptMode='month',swipeIdx=1;
+let rptMode='month',swipeIdx=5;
 
-function setRptMode(mode){rptMode=mode;swipeIdx=1;document.querySelectorAll('#rpt-tabs .tab-btn').forEach((b,i)=>b.classList.toggle('active',i===(mode==='month'?0:1)));renderReport()}
+function setRptMode(mode){rptMode=mode;swipeIdx=mode==='month'?5:2;document.querySelectorAll('#rpt-tabs .tab-btn').forEach((b,i)=>b.classList.toggle('active',i===(mode==='month'?0:1)));renderReport()}
 function getPeriods(){
   const now=new Date(),y=now.getFullYear(),m=now.getMonth();
-  if(rptMode==='month'){const lm=m===0?11:m-1,ly=m===0?y-1:y;return[{label:'上月',ym:`${ly}-${S(lm+1)}`,title:`${ly}年${lm+1}月`},{label:'本月',ym:`${y}-${S(m+1)}`,title:`${y}年${m+1}月`}]}
-  return[{label:'上年',year:y-1,title:`${y-1}年`},{label:'本年',year:y,title:`${y}年`}];
+  if(rptMode==='month'){
+    const periods=[];
+    // Generate last 6 months
+    for(let i=5;i>=0;i--){
+      let mo=m-i,yr=y;
+      while(mo<0){mo+=12;yr--}
+      while(mo>11){mo-=12;yr++}
+      periods.push({label:`${yr}年${mo+1}月`,ym:`${yr}-${S(mo+1)}`,title:`${yr}年${mo+1}月`});
+    }
+    return periods;
+  }
+  // Year mode: last 3 years
+  return[{label:`${y-2}年`,year:y-2,title:`${y-2}年`},{label:`${y-1}年`,year:y-1,title:`${y-1}年`},{label:`${y}年`,year:y,title:`${y}年`}];
 }
 function getPeriodRecs(p){return rptMode==='month'?DB.records.filter(r=>r.date.startsWith(p.ym)):DB.records.filter(r=>r.date.startsWith(String(p.year)))}
 
@@ -830,9 +847,12 @@ function buildPanel(p){
     for(let d=1;d<=days;d+=3){const ds=`${p.ym}-${S(d)}`;const dr=recs.filter(r=>r.date===ds);bars.push({label:`${d}`,exp:dr.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0),inc:dr.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0)})}
   }
   const maxBar=Math.max(...bars.flatMap(b=>[b.exp,b.inc]),1);
+  // Y-axis ticks: 0, 25%, 50%, 75%, 100%
+  const yTicks=[maxBar,maxBar*0.75,maxBar*0.5,maxBar*0.25,0].map(v=>v>=10000?(v/1000).toFixed(0)+'k':v>=1000?(v/1000).toFixed(1)+'k':Math.round(v));
+  const yHtml=`<div class="chart-y">${yTicks.map(t=>`<span>${t}</span>`).join('')}</div>`;
   let barsH=bars.map(b=>{
     const eh=Math.max(b.exp/maxBar*100,1),ih=Math.max(b.inc/maxBar*100,1);
-    return`<div class="cb-wrap"><div class="cb ebar" style="height:${eh}%"></div><div class="cb ibar" style="height:${ih}%"></div><div class="cb-l">${b.label}</div></div>`;
+    return`<div class="cb-wrap at-bar-wrap" onclick="showBarTip(this)" onmouseleave="hideBarTip(this)"><div class="bar-tip"><div class="tip-exp">支出 ${b.exp.toFixed(0)}</div><div class="tip-inc">收入 ${b.inc.toFixed(0)}</div></div><div class="cb ebar" style="height:${eh}%"></div><div class="cb ibar" style="height:${ih}%"></div><div class="cb-l">${b.label}</div></div>`;
   }).join('');
 
   const expMain={},incMain={};
@@ -859,7 +879,7 @@ function buildPanel(p){
     </div>
     <div class="card">
       <div class="card-t">${rptMode==='year'?'月度':'日度'}趋势</div>
-      <div class="chart-bars">${barsH}</div>
+      <div class="chart-wrap">${yHtml}<div class="chart-bars">${barsH}</div></div>
       <div class="legend"><div class="leg-i"><div class="leg-d" style="background:var(--expense)"></div>支出</div><div class="leg-i"><div class="leg-d" style="background:var(--income)"></div>收入</div></div>
     </div>
     <div class="card" id="pie-card-${p.label}">
@@ -894,6 +914,18 @@ function togglePie(label,type,btn){
   }).join('');
 
   document.getElementById('pie-body-'+label).innerHTML=`<div class="pie-wrap">${makePie(sorted,total)}<div class="pie-legend">${makePieLegend(sorted,total,type,label)}</div></div>${catH}`;
+}
+
+// Bar click: show/hide income/expense tooltip
+function showBarTip(el){
+  // Hide all other tips first
+  el.closest('.chart-bars').querySelectorAll('.bar-tip.show').forEach(t=>{if(t!==el.querySelector('.bar-tip'))t.classList.remove('show')});
+  const tip=el.querySelector('.bar-tip');
+  if(tip)tip.classList.toggle('show');
+}
+function hideBarTip(el){
+  const tip=el.querySelector('.bar-tip');
+  if(tip)tip.classList.remove('show');
 }
 
 // Show records for a specific category from pie chart click
@@ -1079,7 +1111,8 @@ function renderAssetChart(months){
   });
   if(bars.length===0){container.innerHTML='<div class="empty-text" style="text-align:center;color:var(--text-m);padding:16px">暂无数据</div>';return}
   const mx=Math.max(...bars.map(v=>v.val),1);
-  let html='<div class="chart-bars" style="height:140px">';
+  const yTicks=[mx,mx*0.75,mx*0.5,mx*0.25,0].map(v=>v>=10000?(v/10000).toFixed(0)+'万':v>=1000?(v/1000).toFixed(0)+'k':Math.round(v));
+  let html=`<div class="chart-wrap" style="height:160px"><div class="chart-y">${yTicks.map(t=>`<span>${t}</span>`).join('')}</div><div class="chart-bars">`;
   bars.forEach((b,i)=>{
     const h=Math.max(b.val/mx*100,2);
     let pctStr='',pctColor='var(--text-m)';
@@ -1091,7 +1124,7 @@ function renderAssetChart(months){
     const isActive=b.month===assetViewMonth;
     html+=`<div class="cb-wrap at-bar-wrap" style="cursor:pointer" onclick="assetViewMonth='${b.month}';renderAssets()">${pctStr?`<div class="at-pct" style="color:${pctColor}">${pctStr}</div>`:''}<div class="cb" style="height:${h}%;background:var(--accent);opacity:${isActive?1:.5}"></div><div class="cb-l" style="${isActive?'color:var(--accent);font-weight:600':''}">${b.label}</div></div>`;
   });
-  html+='</div>';
+  html+='</div></div>';
   container.innerHTML=html;
 }
 
@@ -1430,7 +1463,6 @@ function saveSubcat(){
   _origSaveSubcat();
 }
 
-// Data subpage - CSV only
 // ═══════════════════════════════
 //  DATA PAGE — 导入导出
 // ═══════════════════════════════
@@ -1572,74 +1604,6 @@ function doClearData(){
   saveDB();
   assetViewMonth=null;
   renderAll();
-}
-
-// ═══════════════════════════════
-//  EXPORT/IMPORT (CSV only)
-// ═══════════════════════════════
-function exportCSV(){
-  try{
-    if(!DB||!DB.records||!DB.records.length){alert('暂无记录可导出');return}
-    let csv='\uFEFF日期,类型,大类,子类,金额,备注\n';
-    DB.records.sort((a,b)=>a.date.localeCompare(b.date)).forEach(r=>{
-      const c=findCat(r.type,r.cat),s=r.sub?findSub(r.type,r.cat,r.sub):null;
-      csv+=`${r.date},${r.type==='income'?'收入':'支出'},${c?.label||r.cat},${s?.label||''},${r.amount},${r.note||''}\n`;
-    });
-    dl(csv,'记账数据_'+today()+'.csv','text/csv;charset=utf-8');
-  }catch(e){alert('导出失败: '+e.message)}
-}
-
-function importCSV(e){
-  const f=e.target.files[0];if(!f)return;
-  const r=new FileReader();
-  r.onload=ev=>{
-    try{
-      const lines=ev.target.result.split('\n').filter(l=>l.trim());
-      if(lines.length<2){alert('文件为空');return}
-      let imported=0;
-      for(let i=1;i<lines.length;i++){
-        const parts=lines[i].split(',');
-        if(parts.length<5)continue;
-        const [date,typeStr,catLabel,subLabel,amount,note]=parts.map(s=>s.trim());
-        const type=typeStr==='收入'?'income':'expense';
-        // Find category by label
-        const cats=getCats(type);
-        let cat=null,sub=null;
-        for(const c of cats){if(c.label===catLabel){cat=c.id;if(subLabel){for(const s of(c.subs||[])){if(s.label===subLabel){sub=s.id;break}}}break}}
-        if(!cat)continue;
-        DB.records.push({id:genId(),type,cat,sub,amount:parseFloat(amount)||0,note:note||'',date,ts:new Date(date).getTime()});
-        imported++;
-      }
-      DB.records.sort((a,b)=>b.ts-a.ts);saveDB();
-      alert(`成功导入 ${imported} 条记录`);renderAll();
-    }catch(err){alert('解析失败: '+err.message)}
-  };
-  r.readAsText(f);e.target.value='';
-}
-
-function dl(c,n,t){
-  try{
-    // Capacitor Android
-    if(window.Capacitor&&typeof Capacitor.isNativePlatform==='function'&&Capacitor.isNativePlatform()){
-      const Fs=Capacitor.Plugins&&Capacitor.Plugins.Filesystem;
-      const Sh=Capacitor.Plugins&&Capacitor.Plugins.Share;
-      if(Fs&&Sh){
-        Fs.writeFile({path:n, data:c, directory:'Documents', encoding:'utf8'})
-          .then(r=>Sh.share({title:n,text:'CSV 数据文件',url:r.uri||undefined}))
-          .catch(e=>alert('导出失败: '+e.message));
-        return;
-      }
-    }
-    // Browser — same as original JSON export
-    const b=new Blob([c],{type:t});
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(b);
-    a.download=n;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
-  }catch(e){alert('导出失败: '+e.message);console.error('dl error:',e)}
 }
 
 // ═══════════════════════════════
