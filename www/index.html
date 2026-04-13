@@ -109,10 +109,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text-p);min-height
 .swipe-wrap{flex:1;overflow:hidden;position:relative}
 .swipe-track{display:flex;transition:transform .35s cubic-bezier(.22,1,.36,1);will-change:transform;height:100%}
 .swipe-panel{min-width:100%;flex-shrink:0;padding:0 0 20px;overflow-y:auto}
-.swipe-dots{display:flex;justify-content:center;gap:6px;padding:10px 0 4px}
-.swipe-dot{width:6px;height:6px;border-radius:50%;background:var(--text-m);transition:all .25s}
-.swipe-dot.active{background:var(--accent);width:20px;border-radius:3px}
-.swipe-lbl{text-align:center;font-size:13px;color:var(--text-s);font-weight:500;padding:2px 0 8px}
+.swipe-nav{display:flex;align-items:center;justify-content:center;gap:4px;padding:10px 16px 8px;user-select:none}
+.swipe-nav-btn{width:32px;height:32px;border-radius:50%;border:none;background:var(--bg-elevated);color:var(--text);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,opacity .15s;-webkit-tap-highlight-color:transparent}
+.swipe-nav-btn:active{background:var(--border)}
+.swipe-nav-btn.disabled{opacity:.3;pointer-events:none}
+.swipe-nav-lbl{flex:1;text-align:center;font-size:14px;color:var(--text);font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .asset-item{display:flex;align-items:center;padding:14px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;cursor:pointer;transition:background .15s}
 .asset-item:active{background:var(--bg-elevated)}
 .asset-item .ai-icon{font-size:20px;margin-right:12px;cursor:pointer}
@@ -251,8 +252,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text-p);min-height
     <button class="tab-btn active" onclick="setRptMode('month')">月度报表</button>
     <button class="tab-btn" onclick="setRptMode('year')">年度报表</button>
   </div>
-  <div class="swipe-dots" id="swipe-dots"></div>
-  <div class="swipe-lbl" id="swipe-lbl"></div>
+  <div class="swipe-nav" id="swipe-nav"><button class="swipe-nav-btn" onclick="navSwipe(-1)">‹</button><div class="swipe-nav-lbl" id="swipe-lbl"></div><button class="swipe-nav-btn" onclick="navSwipe(1)">›</button></div>
   <div class="swipe-wrap" id="swipe-wrap"><div class="swipe-track" id="swipe-track"></div></div>
 </div>
 
@@ -382,6 +382,26 @@ body{font-family:var(--font);background:var(--bg);color:var(--text-p);min-height
 </div>
 </div>
 
+<!-- ═══ IMPORT MAP MODAL ═══ -->
+<div class="modal-overlay" id="modal-import-map">
+<div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <h2>手动匹配分类</h2>
+  <div id="imp-map-info" style="margin-bottom:14px"></div>
+  <div style="display:flex;gap:8px;margin-bottom:14px">
+    <button class="tab-btn active" id="imp-tab-expense" onclick="impSetType('expense')">支出</button>
+    <button class="tab-btn" id="imp-tab-income" onclick="impSetType('income')">收入</button>
+  </div>
+  <div class="cat-grid" id="imp-cat-grid"></div>
+  <div id="imp-subcat-area"></div>
+  <div style="display:flex;gap:8px;margin-top:14px">
+    <button class="sub-btn" style="flex:1" onclick="impConfirm()">确认</button>
+    <button class="qbtn" style="flex:0 0 auto;padding:12px 16px" onclick="impSkip()">跳过</button>
+    <button class="qbtn" style="flex:0 0 auto;padding:12px 16px" onclick="impSkipAll()">全部跳过</button>
+  </div>
+</div>
+</div>
+
 <!-- ═══ CATEGORY ICON MODAL ═══ -->
 <div class="modal-overlay" id="modal-cat-icon" onclick="closeModal(event,'modal-cat-icon')">
 <div class="modal" onclick="event.stopPropagation()">
@@ -454,15 +474,15 @@ window.confirmResolve=confirmResolve;
 const SK='jz_data';
 const DEF_CATS={
   expense:[
-    {id:'food',icon:'🍜',label:'餐饮',subs:[{id:'dining',icon:'🍽️',label:'堂食'},{id:'delivery',icon:'🛵',label:'外卖'},{id:'snack',icon:'☕',label:'零食饮品'}]},
-    {id:'traffic',icon:'🚇',label:'交通',subs:[{id:'subway',icon:'🚇',label:'地铁'},{id:'taxi',icon:'🚕',label:'打车'},{id:'bus',icon:'🚌',label:'公交'},{id:'fuel',icon:'⛽',label:'加油'}]},
-    {id:'shop',icon:'🛍️',label:'购物',subs:[{id:'clothes',icon:'👔',label:'服饰'},{id:'digital',icon:'📱',label:'数码'},{id:'daily',icon:'🧴',label:'日用品'}]},
+    {id:'food',icon:'🍜',label:'餐饮',subs:[{id:'grain-oil',icon:'🫙',label:'粮油调味'},{id:'coffee-tea',icon:'☕',label:'咖啡奶茶'},{id:'tobacco-wine',icon:'🍵',label:'烟酒茶叶'},{id:'snack-fruit',icon:'🍎',label:'零食水果'},{id:'meals',icon:'🍱',label:'早中晚餐'}]},
+    {id:'traffic',icon:'🚇',label:'交通',subs:[{id:'parking',icon:'🅿️',label:'停车费'},{id:'fuel-charge',icon:'⛽',label:'加油充电'},{id:'maintenance',icon:'🔧',label:'保养修车'},{id:'train-plane',icon:'✈️',label:'火车飞机'},{id:'taxi-rent',icon:'🚕',label:'打车租车'},{id:'bus-metro',icon:'🚌',label:'公交地铁'}]},
+    {id:'shop',icon:'🛍️',label:'购物',subs:[{id:'clothes-sport',icon:'👔',label:'服饰运动'},{id:'daily-home',icon:'🏠',label:'日常家居'},{id:'appliance',icon:'🔌',label:'生活家电'},{id:'beauty-makeup',icon:'💄',label:'个护美妆'}]},
     {id:'house',icon:'🏠',label:'居住',subs:[{id:'rent',icon:'🏠',label:'房租'},{id:'utility',icon:'💡',label:'水电煤'},{id:'property',icon:'🏢',label:'物业'}]},
-    {id:'fun',icon:'🎮',label:'娱乐',subs:[{id:'game',icon:'🎮',label:'游戏'},{id:'travel',icon:'✈️',label:'旅行'},{id:'movie',icon:'🎬',label:'影视'},{id:'sport',icon:'⚽',label:'运动'}]},
+    {id:'fun',icon:'🎮',label:'娱乐',subs:[{id:'game',icon:'🎮',label:'游戏'},{id:'movie-show',icon:'🎬',label:'电影演出'},{id:'vip-service',icon:'💎',label:'会员服务'}]},
     {id:'medical',icon:'💊',label:'医疗',subs:[{id:'hospital',icon:'🏥',label:'看病'},{id:'medicine',icon:'💊',label:'药品'},{id:'health',icon:'🧬',label:'保健'}]},
     {id:'edu',icon:'📚',label:'教育',subs:[{id:'book',icon:'📖',label:'书籍'},{id:'course',icon:'🎓',label:'课程'}]},
-    {id:'personal',icon:'💇',label:'个人',subs:[{id:'hair',icon:'💇',label:'美容'},{id:'skincare',icon:'🧴',label:'护肤'},{id:'gym',icon:'🏋️',label:'健身'}]},
-    {id:'social',icon:'👥',label:'社交',subs:[{id:'gift',icon:'🎁',label:'礼物'},{id:'party',icon:'🍻',label:'聚餐'}]},
+    {id:'personal',icon:'💇',label:'个人',subs:[{id:'beauty',icon:'💆',label:'美容'},{id:'haircut',icon:'✂️',label:'理发'}]},
+    {id:'social',icon:'👥',label:'社交',subs:[{id:'gift',icon:'🎁',label:'礼物'},{id:'redpack',icon:'🧧',label:'红包'}]},
     {id:'other',icon:'📌',label:'其他',subs:[]}
   ],
   income:[
@@ -492,6 +512,24 @@ const AVATAR_OPTIONS=['🧑','👩','👨','👧','👦','🧔','👩‍🦰','�
 let DB=loadDB();
 function loadDB(){try{return JSON.parse(localStorage.getItem(SK))||defDB()}catch(e){return defDB()}}
 function defDB(){return{records:[],assets:[],categories:JSON.parse(JSON.stringify(DEF_CATS)),theme:'auto',profile:{avatar:'🧑',nickname:'记账达人'}}}
+function migrateCats(){
+  ['expense','income'].forEach(function(type){
+    if(!DB.categories[type])DB.categories[type]=[];
+    var dbCats=DB.categories[type];
+    var defCats=DEF_CATS[type]||[];
+    defCats.forEach(function(dc){
+      var exist=dbCats.find(c=>c.id===dc.id);
+      if(exist){
+        exist.icon=dc.icon;
+        exist.label=dc.label;
+        exist.subs=JSON.parse(JSON.stringify(dc.subs||[]));
+      }else{
+        dbCats.push(JSON.parse(JSON.stringify(dc)));
+      }
+    });
+  });
+}
+migrateCats();
 function saveDB(){localStorage.setItem(SK,JSON.stringify(DB))}
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function today(){const d=new Date();return`${d.getFullYear()}-${S(d.getMonth()+1)}-${S(d.getDate())}`}
@@ -628,7 +666,7 @@ function renderHome(){
   homeBatch=0;
   const now=new Date(),ym=curMonth();
   document.getElementById('h-date').textContent=`${now.getFullYear()}年${now.getMonth()+1}月 · 周${['日','一','二','三','四','五','六'][now.getDay()]}`;
-  const mr=DB.records.filter(r=>r.date.startsWith(ym));
+  const mr=DB.records.filter(r=>{var dt=new Date(r.date);return!isNaN(dt)&&dt.getFullYear()+'-'+S(dt.getMonth()+1)===ym});
   const inc=mr.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0);
   const exp=mr.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0);
   document.getElementById('balance').textContent=(inc-exp).toFixed(2);
@@ -774,33 +812,61 @@ function saveRecord(){
 // ═══════════════════════════════
 //  REPORT
 // ═══════════════════════════════
-let rptMode='month',swipeIdx=5;
+let rptMode='month',swipeIdx=0;
 
-function setRptMode(mode){rptMode=mode;swipeIdx=mode==='month'?5:2;document.querySelectorAll('#rpt-tabs .tab-btn').forEach((b,i)=>b.classList.toggle('active',i===(mode==='month'?0:1)));renderReport()}
+function setRptMode(mode){rptMode=mode;const ps=getPeriods();swipeIdx=ps.length-1;document.querySelectorAll('#rpt-tabs .tab-btn').forEach((b,i)=>b.classList.toggle('active',i===(mode==='month'?0:1)));renderReport()}
+
+
 function getPeriods(){
-  const now=new Date(),y=now.getFullYear(),m=now.getMonth();
-  if(rptMode==='month'){
-    const periods=[];
-    // Generate last 6 months
-    for(let i=5;i>=0;i--){
-      let mo=m-i,yr=y;
-      while(mo<0){mo+=12;yr--}
-      while(mo>11){mo-=12;yr++}
-      periods.push({label:`${yr}年${mo+1}月`,ym:`${yr}-${S(mo+1)}`,title:`${yr}年${mo+1}月`});
-    }
-    return periods;
+  var now=new Date(),y=now.getFullYear(),m=now.getMonth();
+  if(!DB.records.length){
+    if(rptMode==='month')return[{label:y+'年'+(m+1)+'月',ym:y+'-'+S(m+1),title:y+'年'+(m+1)+'月'}];
+    return[{label:y+'年',year:y,title:y+'年'}];
   }
-  // Year mode: last 3 years
-  return[{label:`${y-2}年`,year:y-2,title:`${y-2}年`},{label:`${y-1}年`,year:y-1,title:`${y-1}年`},{label:`${y}年`,year:y,title:`${y}年`}];
+  // 统一提取 YYYY-MM 或 YYYY，兼容 2023/5/1 和 2023-05-01 两种格式
+  function ymKey(d){var dt=new Date(d);if(isNaN(dt))return null;return dt.getFullYear()+'-'+S(dt.getMonth()+1)}
+  function yrKey(d){var dt=new Date(d);if(isNaN(dt))return null;return String(dt.getFullYear())}
+  if(rptMode==='month'){
+    var set={};
+    DB.records.forEach(function(r){var k=ymKey(r.date);if(k)set[k]=1});
+    var yms=Object.keys(set).sort();
+    if(!yms.length)return[{label:y+'年'+(m+1)+'月',ym:y+'-'+S(m+1),title:y+'年'+(m+1)+'月'}];
+    return yms.map(function(ym){var parts=ym.split('-');return{label:parts[0]+'年'+parseInt(parts[1])+'月',ym:ym,title:parts[0]+'年'+parseInt(parts[1])+'月'}});
+  }
+  var set={};
+  DB.records.forEach(function(r){var k=yrKey(r.date);if(k)set[k]=1});
+  var yrs=Object.keys(set).sort();
+  if(!yrs.length)return[{label:y+'年',year:y,title:y+'年'}];
+  return yrs.map(function(yr){return{label:yr+'年',year:parseInt(yr),title:yr+'年'}});
 }
-function getPeriodRecs(p){return rptMode==='month'?DB.records.filter(r=>r.date.startsWith(p.ym)):DB.records.filter(r=>r.date.startsWith(String(p.year)))}
+function getPeriodRecs(p){
+  if(rptMode==='month'){
+    return DB.records.filter(function(r){var dt=new Date(r.date);if(isNaN(dt))return false;return dt.getFullYear()+'-'+S(dt.getMonth()+1)===p.ym});
+  }
+  return DB.records.filter(function(r){var dt=new Date(r.date);if(isNaN(dt))return false;return dt.getFullYear()===p.year});
+}
 
 function renderReport(){
   const ps=getPeriods();if(swipeIdx>=ps.length)swipeIdx=ps.length-1;
-  document.getElementById('swipe-dots').innerHTML=ps.map((_,i)=>`<div class="swipe-dot${i===swipeIdx?' active':''}"></div>`).join('');
   document.getElementById('swipe-lbl').textContent=ps[swipeIdx]?.label||'';
   document.getElementById('swipe-track').innerHTML=ps.map(p=>buildPanel(p)).join('');
   document.getElementById('swipe-track').style.transform=`translateX(-${swipeIdx*100}%)`;
+  updateNav(ps);
+}
+function updateNav(ps){
+  ps=ps||getPeriods();
+  var btns=document.querySelectorAll('#swipe-nav .swipe-nav-btn');
+  if(btns[0])btns[0].classList.toggle('disabled',swipeIdx<=0);
+  if(btns[1])btns[1].classList.toggle('disabled',swipeIdx>=ps.length-1);
+}
+function navSwipe(dir){
+  const ps=getPeriods();
+  var ni=swipeIdx+dir;
+  if(ni<0||ni>=ps.length)return;
+  swipeIdx=ni;
+  document.getElementById('swipe-lbl').textContent=ps[swipeIdx]?.label||'';
+  document.getElementById('swipe-track').style.transform=`translateX(-${swipeIdx*100}%)`;
+  updateNav(ps);
 }
 
 function makePie(mainCats,total){
@@ -827,15 +893,28 @@ function buildPanel(p){
   const exp=recs.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0);
   const bal=inc-exp;
 
+  // 日期归一化
+  function normYM(d){var dt=new Date(d);if(isNaN(dt))return'';return dt.getFullYear()+'-'+S(dt.getMonth()+1)}
+  function normYr(d){var dt=new Date(d);if(isNaN(dt))return'';return String(dt.getFullYear())}
+
+  // 趋势图：用全部数据，月度报表→月度趋势，年度报表→年度趋势
   let bars=[];
   if(rptMode==='year'){
-    for(let mo=0;mo<12;mo++){
-      const ym=`${p.year}-${S(mo+1)}`;const mr=recs.filter(r=>r.date.startsWith(ym));
-      bars.push({label:`${mo+1}月`,exp:mr.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0),inc:mr.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0)});
-    }
+    // 年度趋势：所有有数据的年份
+    var yrSet={};DB.records.forEach(function(r){var k=normYr(r.date);if(k)yrSet[k]=1});
+    var yrs=Object.keys(yrSet).sort();
+    yrs.forEach(function(yr){
+      var mr=DB.records.filter(r=>normYr(r.date)===yr);
+      bars.push({label:yr.slice(2)+'年',exp:mr.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0),inc:mr.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0)});
+    });
   }else{
-    const[yy,mm]=p.ym.split('-').map(Number);const days=new Date(yy,mm,0).getDate();
-    for(let d=1;d<=days;d+=3){const ds=`${p.ym}-${S(d)}`;const dr=recs.filter(r=>r.date===ds);bars.push({label:`${d}`,exp:dr.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0),inc:dr.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0)})}
+    // 月度趋势：只显示当前报表所在年份的 1-12 月
+    var curYear=p.ym?p.ym.split('-')[0]:String(new Date().getFullYear());
+    for(var mi=1;mi<=12;mi++){
+      var ymKey=curYear+'-'+S(mi);
+      var mr=DB.records.filter(r=>normYM(r.date)===ymKey);
+      bars.push({label:mi+'月',exp:mr.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0),inc:mr.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0)});
+    }
   }
   const maxBar=Math.max(...bars.flatMap(b=>[b.exp,b.inc]),1);
   // Y-axis ticks: 0, 25%, 50%, 75%, 100%
@@ -869,7 +948,7 @@ function buildPanel(p){
       <div class="sub" style="margin-top:10px">结余 ¥${bal.toFixed(0)} ${balTag}</div>
     </div>
     <div class="card">
-      <div class="card-t">${rptMode==='year'?'月度':'日度'}趋势</div>
+      <div class="card-t">${rptMode==='year'?'年度':'月度'}趋势</div>
       <div class="chart-wrap">${yHtml}<div class="chart-bars">${barsH}</div></div>
       <div class="legend"><div class="leg-i"><div class="leg-d" style="background:var(--expense)"></div>支出</div><div class="leg-i"><div class="leg-d" style="background:var(--income)"></div>收入</div></div>
     </div>
@@ -973,7 +1052,7 @@ function initSwipe(){
     if(!isH)return;
     dx=mx;track.style.transition='none';track.style.transform=`translateX(${-swipeIdx*100+dx/wrap.clientWidth*100}%)`
   }
-  function onE(){if(!sw)return;sw=false;track.style.transition='transform .35s cubic-bezier(.22,1,.36,1)';if(isH){const n=getPeriods().length;if(dx<-wrap.clientWidth*THRESHOLD&&swipeIdx<n-1)swipeIdx++;else if(dx>wrap.clientWidth*THRESHOLD&&swipeIdx>0)swipeIdx--}dx=0;isH=null;track.style.transform=`translateX(-${swipeIdx*100}%)`;const ps=getPeriods();document.getElementById('swipe-lbl').textContent=ps[swipeIdx]?.label||'';document.querySelectorAll('.swipe-dot').forEach((d,i)=>d.className='swipe-dot'+(i===swipeIdx?' active':''))}
+  function onE(){if(!sw)return;sw=false;track.style.transition='transform .35s cubic-bezier(.22,1,.36,1)';if(isH){const n=getPeriods().length;if(dx<-wrap.clientWidth*THRESHOLD&&swipeIdx<n-1)swipeIdx++;else if(dx>wrap.clientWidth*THRESHOLD&&swipeIdx>0)swipeIdx--}dx=0;isH=null;track.style.transform=`translateX(-${swipeIdx*100}%)`;const ps=getPeriods();document.getElementById('swipe-lbl').textContent=ps[swipeIdx]?.label||'';updateNav(ps)}
   wrap.addEventListener('touchstart',e=>onS(e.touches[0].clientX,e.touches[0].clientY),{passive:true});
   wrap.addEventListener('touchmove',e=>onM(e.touches[0].clientX,e.touches[0].clientY),{passive:true});
   wrap.addEventListener('touchend',onE,{passive:true});
@@ -1136,18 +1215,14 @@ function renderAssetChart(months){
   });
   if(bars.length===0){container.innerHTML='<div class="empty-text" style="text-align:center;color:var(--text-m);padding:16px">暂无数据</div>';return}
   const mx=Math.max(...bars.map(v=>v.val),1);
-  const yTicks=[mx,mx*0.75,mx*0.5,mx*0.25,0].map(v=>v>=10000?(v/10000).toFixed(0)+'万':v>=1000?(v/1000).toFixed(0)+'k':Math.round(v));
+  const mn=Math.min(...bars.map(v=>v.val));
+  const yRange=mx-mn||1;
+  const yTicks=[mx,(mn+yRange*0.75),(mn+yRange*0.5),(mn+yRange*0.25),mn].map(v=>v>=10000?(v/10000).toFixed(1)+'万':v>=1000?(v/1000).toFixed(0)+'k':Math.round(v));
   let html=`<div class="chart-wrap" style="height:160px"><div class="chart-y">${yTicks.map(t=>`<span>${t}</span>`).join('')}</div><div class="chart-bars">`;
   bars.forEach((b,i)=>{
-    const h=Math.max(b.val/mx*100,2);
-    let pctStr='',pctColor='var(--text-m)';
-    if(i>0&&bars[i-1].val>0){
-      const pctChange=((b.val-bars[i-1].val)/bars[i-1].val*100);
-      pctStr=(pctChange>=0?'+':'')+pctChange.toFixed(1)+'%';
-      pctColor=pctChange>=0?'var(--income)':'var(--expense)';
-    }
+    const h=Math.max((b.val-mn)/yRange*100,2);
     const isActive=b.month===assetViewMonth;
-    html+=`<div class="cb-wrap at-bar-wrap" onclick="showAssetBarTip(this)" onmouseleave="hideAssetBarTip(this)"><div class="bar-tip"><div style="font-weight:500">¥${b.val.toFixed(0)}</div></div>${pctStr?`<div class="at-pct" style="color:${pctColor}">${pctStr}</div>`:''}<div class="cb" style="height:${h}%;background:var(--accent);opacity:${isActive?1:.5}"></div><div class="cb-l" style="${isActive?'color:var(--accent);font-weight:600':''}">${b.label}</div></div>`;
+    html+=`<div class="cb-wrap at-bar-wrap" onclick="showAssetBarTip(this)" onmouseleave="hideAssetBarTip(this)"><div class="bar-tip"><div style="font-weight:500">¥${b.val.toFixed(0)}</div></div><div class="cb" style="height:${h}%;background:var(--accent);opacity:${isActive?1:.5}"></div><div class="cb-l" style="${isActive?'color:var(--accent);font-weight:600':''}">${b.label}</div></div>`;
   });
   html+='</div></div>';
   container.innerHTML=html;
@@ -1282,7 +1357,7 @@ function renderProfile(){
   let html=`<div class="card" style="text-align:center">
     <div style="width:64px;height:64px;border-radius:50%;background:var(--accent-d);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 12px;cursor:pointer" onclick="openAvatarPicker()">${DB.profile.avatar}</div>
     <input class="nickname-input" value="${DB.profile.nickname}" placeholder="输入昵称" onchange="DB.profile.nickname=this.value.trim()||'记账达人';saveDB();renderProfile()" />
-    <div style="font-size:12px;color:var(--text-m);margin-top:4px">从 ${new Date().getFullYear()} 年开始记账</div>
+    <div style="font-size:12px;color:var(--text-m);margin-top:4px">从 ${DB.records.length?Math.min(...DB.records.map(r=>{var d=new Date(r.date);return isNaN(d)?9999:d.getFullYear()})):new Date().getFullYear()} 年开始记账</div>
     <div class="ov-row" style="margin-top:16px">
       <div class="ov-col"><div class="lbl">记账天数</div><div class="val" style="color:var(--accent)">${days}</div></div>
       <div class="ov-col"><div class="lbl">总笔数</div><div class="val" style="color:var(--accent)">${DB.records.length}</div></div>
@@ -1527,37 +1602,208 @@ function doImport(evt){
     if(name.endsWith('.json')){importJSON(txt)}
     else{importCSV(txt)}
   };
-  reader.readAsText(file);
+  // 先读取前 512 字节检测编码
+  const probe=file.slice(0,512);
+  const probeReader=new FileReader();
+  probeReader.onload=function(e){
+    const head=new Uint8Array(e.target.result);
+    let enc='UTF-8';
+    // 检测 BOM
+    if(head[0]===0xEF&&head[1]===0xBB&&head[2]===0xBF){enc='UTF-8'}
+    // 无 BOM 时，检查是否存在非法 UTF-8 序列（GBK 特征）
+    else{
+      let validUtf8=true;
+      for(let i=0;i<head.length;){
+        if(head[i]<0x80){i++;continue}
+        if(head[i]>=0xC0&&head[i]<=0xDF&&i+1<head.length&&(head[i+1]&0xC0)===0x80){i+=2;continue}
+        if(head[i]>=0xE0&&head[i]<=0xEF&&i+2<head.length&&(head[i+1]&0xC0)===0x80&&(head[i+2]&0xC0)===0x80){i+=3;continue}
+        if(head[i]>=0xF0&&head[i]<=0xF7&&i+3<head.length&&(head[i+1]&0xC0)===0x80&&(head[i+2]&0xC0)===0x80&&(head[i+3]&0xC0)===0x80){i+=4;continue}
+        if(head[i]>=0x80){validUtf8=false;break}
+        i++;
+      }
+      if(!validUtf8)enc='GBK';
+    }
+    reader.readAsText(file, enc);
+  };
+  probeReader.readAsArrayBuffer(probe);
   evt.target.value='';
 }
 
+/* ═══ 健壮 CSV 解析器：支持引号包裹、逗号、换行、转义引号 ═══ */
+function parseCSV(txt){
+  var rows=[],row=[],field='',inQ=false;
+  for(var i=0;i<txt.length;i++){
+    var ch=txt[i];
+    if(inQ){
+      if(ch==='"'){
+        if(i+1<txt.length&&txt[i+1]==='"'){field+='"';i++}
+        else inQ=false;
+      }else{field+=ch}
+    }else{
+      if(ch==='"'){inQ=true}
+      else if(ch===','){row.push(field);field=''}
+      else if(ch==='\r'){/* skip */}
+      else if(ch==='\n'){
+        row.push(field);field='';
+        if(row.some(function(f){return f.trim()}))rows.push(row);
+        row=[];
+      }else{field+=ch}
+    }
+  }
+  row.push(field);
+  if(row.some(function(f){return f.trim()}))rows.push(row);
+  return rows;
+}
+
+/* ═══ 导入状态 ═══ */
+var importQueue=[];    // 待处理的行 [{p, typeStr, catLabel, subLabel}]
+var importMap={};      // { csvCatLabel: {type, cat, sub} } 缓存手动映射
+var importIdx=0;
+var importCount=0;
+
 function importCSV(txt){
   try{
-    const lines=txt.split('\n').filter(l=>l.trim());
-    if(lines.length<2){alert('文件为空');return}
-    let n=0;
-    for(let i=1;i<lines.length;i++){
-      const p=lines[i].split(',');
+    var rows=parseCSV(txt);
+    if(rows.length<2){alert('文件为空');return}
+    importQueue=[];importMap={};importIdx=0;importCount=0;
+    for(var i=1;i<rows.length;i++){
+      var p=rows[i];
       if(p.length<5)continue;
-      const date=p[0].trim(),typeStr=p[1].trim(),catLabel=p[2].trim(),subLabel=p[3].trim(),amount=p[4].trim(),note=(p[5]||'').trim();
-      const type=typeStr==='收入'?'income':'expense';
-      const cats=getCats(type);
-      let cat=null,sub=null;
-      for(const c of cats){
-        if(c.label===catLabel){
-          cat=c.id;
-          if(subLabel&&c.subs){for(const s of c.subs){if(s.label===subLabel){sub=s.id;break}}}
-          break;
+      var date=p[0].trim(),typeStr=p[1].trim(),catLabel=p[2].trim(),subLabel=p[3].trim(),amount=p[4].trim(),note=(p[5]||'').trim();
+      var type=typeStr==='收入'?'income':'expense';
+      var cats=getCats(type);
+      var cat=null,sub=null;
+      // 先查缓存映射
+      if(importMap[catLabel]&&importMap[catLabel].type===type){
+        cat=importMap[catLabel].cat;
+        sub=importMap[catLabel].sub;
+      }else{
+        for(var j=0;j<cats.length;j++){
+          if(cats[j].label===catLabel){
+            cat=cats[j].id;
+            if(subLabel&&cats[j].subs){for(var k=0;k<cats[j].subs.length;k++){if(cats[j].subs[k].label===subLabel){sub=cats[j].subs[k].id;break}}}
+            break;
+          }
         }
       }
-      if(!cat)continue;
-      DB.records.push({id:genId(),type,cat,sub,amount:parseFloat(amount)||0,note:note,date:date,ts:new Date(date).getTime()});
-      n++;
+      if(cat){
+        DB.records.push({id:genId(),type:type,cat:cat,sub:sub,amount:parseFloat(amount)||0,note:note,date:date,ts:new Date(date).getTime()});
+        importCount++;
+      }else{
+        importQueue.push({p:p,typeStr:typeStr,catLabel:catLabel,subLabel:subLabel,date:date,amount:amount,note:note});
+      }
     }
-    DB.records.sort(function(a,b){return b.ts-a.ts});
-    saveDB();renderAll();
-    alert('成功导入 '+n+' 条记录');
+    if(importQueue.length>0){
+      processImportQueue();
+    }else{
+      finishImport();
+    }
   }catch(e){alert('导入失败: '+e.message)}
+}
+
+function processImportQueue(){
+  if(importIdx>=importQueue.length){finishImport();return}
+  var item=importQueue[importIdx];
+  // 检查缓存
+  var cached=importMap[item.catLabel];
+  if(cached&&cached.type===(item.typeStr==='收入'?'income':'expense')){
+    saveImportRecord(item,cached.type,cached.cat,cached.sub);
+    importIdx++;processImportQueue();return;
+  }
+  showImportMapModal(item);
+}
+
+function impSetType(type){
+  window._impType=type;window._impCat=null;window._impSub=null;
+  document.getElementById('imp-tab-expense').className='tab-btn'+(type==='expense'?' active':'');
+  document.getElementById('imp-tab-income').className='tab-btn'+(type==='income'?' active':'');
+  renderImpCatGrid(type);
+  document.getElementById('imp-subcat-area').innerHTML='';
+}
+
+function showImportMapModal(item){
+  var ov=document.getElementById('modal-import-map');
+  var type=item.typeStr==='收入'?'income':'expense';
+  document.getElementById('imp-map-info').innerHTML=
+    '<div style="font-size:13px;color:var(--text-s);margin-bottom:4px">第 '+(importIdx+1)+'/'+importQueue.length+' 条待匹配</div>'+
+    '<div style="font-size:15px;font-weight:600;margin-bottom:2px">'+item.date+' · '+item.typeStr+' · ¥'+item.amount+'</div>'+
+    '<div style="font-size:13px;color:var(--text-m)">分类: <b style="color:var(--accent)">'+item.catLabel+'</b>'+(item.subLabel?' / '+item.subLabel:'')+(item.note?' · '+item.note:'')+'</div>';
+  window._impItem=item;
+  window._impType=type;
+  window._impCat=null;
+  window._impSub=null;
+  renderImpCatGrid(type);
+  document.getElementById('imp-subcat-area').innerHTML='';
+  ov.classList.add('show');
+}
+
+function renderImpCatGrid(type){
+  var cats=getCats(type);
+  document.getElementById('imp-cat-grid').innerHTML=cats.map(function(c){
+    return '<button class="cat-sel'+(window._impCat===c.id?' sel':'')+'" onclick="impSelectCat(\''+c.id+'\')"><span class="ci">'+c.icon+'</span><span class="cl">'+c.label+'</span></button>';
+  }).join('');
+}
+
+function impSelectCat(id){
+  window._impCat=id;window._impSub=null;
+  renderImpCatGrid(window._impType);
+  var cats=getCats(window._impType);
+  var cat=null;
+  for(var i=0;i<cats.length;i++){if(cats[i].id===id){cat=cats[i];break}}
+  if(!cat||!cat.subs||!cat.subs.length){
+    document.getElementById('imp-subcat-area').innerHTML='';
+    return;
+  }
+  document.getElementById('imp-subcat-area').innerHTML='<div style="font-size:12px;color:var(--text-s);margin:10px 0 6px">子分类</div><div class="subcat-chips">'+cat.subs.map(function(s){
+    return '<button class="subcat-chip'+(window._impSub===s.id?' sel':'')+'" onclick="impSelectSub(\''+s.id+'\')">'+s.icon+' '+s.label+'</button>';
+  }).join('')+'</div>';
+}
+
+function impSelectSub(id){
+  window._impSub=id;
+  var cats=getCats(window._impType);
+  var cat=null;
+  for(var i=0;i<cats.length;i++){if(cats[i].id===window._impCat){cat=cats[i];break}}
+  if(cat&&cat.subs){
+    document.getElementById('imp-subcat-area').innerHTML='<div style="font-size:12px;color:var(--text-s);margin:10px 0 6px">子分类</div><div class="subcat-chips">'+cat.subs.map(function(s){
+      return '<button class="subcat-chip'+(window._impSub===s.id?' sel':'')+'" onclick="impSelectSub(\''+s.id+'\')">'+s.icon+' '+s.label+'</button>';
+    }).join('')+'</div>';
+  }
+}
+
+function impConfirm(){
+  if(!window._impCat){alert('请先选择一个分类');return}
+  var item=window._impItem;
+  var type=window._impType;
+  // 缓存映射
+  importMap[item.catLabel]={type:type,cat:window._impCat,sub:window._impSub};
+  document.getElementById('modal-import-map').classList.remove('show');
+  saveImportRecord(item,type,window._impCat,window._impSub);
+  importIdx++;processImportQueue();
+}
+
+function impSkip(){
+  document.getElementById('modal-import-map').classList.remove('show');
+  importIdx++;processImportQueue();
+}
+
+function impSkipAll(){
+  document.getElementById('modal-import-map').classList.remove('show');
+  importIdx=importQueue.length;
+  finishImport();
+}
+
+function saveImportRecord(item,type,cat,sub){
+  DB.records.push({id:genId(),type:type,cat:cat,sub:sub,amount:parseFloat(item.amount)||0,note:item.note,date:item.date,ts:new Date(item.date).getTime()});
+  importCount++;
+}
+
+function finishImport(){
+  DB.records.sort(function(a,b){return b.ts-a.ts});
+  saveDB();
+  var ps=getPeriods();swipeIdx=ps.length-1;
+  renderAll();
+  alert('成功导入 '+importCount+' 条记录');
 }
 
 function importJSON(txt){
@@ -1621,6 +1867,7 @@ function doClearData(){
   DB.assets=[];
   saveDB();
   assetViewMonth=null;
+  swipeIdx=0;
   renderAll();
 }
 
