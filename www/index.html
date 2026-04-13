@@ -16,12 +16,13 @@
 .theme-light{--bg:#f5f2ed;--bg-card:#fff;--bg-elevated:#f0ece4;--bg-input:#f0ece4;--text-p:#1a1714;--text-s:#7a756c;--text-m:#a8a39a;--border:rgba(0,0,0,.08);--nav-bg:rgba(245,242,237,.88);--header-bg:rgba(245,242,237,.85);color-scheme:light}
 .theme-dark{--bg:#0a0a0a;--bg-card:#141414;--bg-elevated:#1a1a1a;--bg-input:#1e1e1e;--text-p:#f0ece4;--text-s:#8a8578;--text-m:#5a564e;--border:rgba(255,255,255,.06);--nav-bg:rgba(10,10,10,.88);--header-bg:rgba(10,10,10,.85);color-scheme:dark}
 html{font-size:16px}
-body{font-family:var(--font);background:var(--bg);color:var(--text-p);min-height:100dvh;overflow-x:hidden;-webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
+body{font-family:var(--font);background:var(--bg);color:var(--text-p);min-height:100dvh;overflow-x:hidden;-webkit-font-smoothing:antialiased;transition:background .4s ease,color .4s ease}
 .app{max-width:430px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;position:relative}
 .page{flex:1;display:none;flex-direction:column;padding-bottom:calc(72px + var(--safe-b));animation:pageIn .3s ease-out}
 .page.active{display:flex}
-.subpage{display:none;flex-direction:column;flex:1}
+.subpage{display:none;flex-direction:column;flex:1;animation:subpageIn .3s ease-out}
 .subpage.active{display:flex}
+@keyframes subpageIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
 @keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--nav-bg);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border-top:1px solid var(--border);display:flex;padding:8px 16px calc(8px + var(--safe-b));z-index:100;transition:background .3s,border-color .3s}
 .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;cursor:pointer;background:none;border:none;color:var(--text-m);transition:color .2s}
@@ -73,7 +74,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text-p);min-height
 .chart-y{display:flex;flex-direction:column;justify-content:space-between;padding:10px 0 16px;min-width:36px}
 .chart-y span{font-family:var(--mono);font-size:9px;color:var(--text-m);text-align:right;line-height:1}
 .chart-bars{flex:1;display:flex;align-items:flex-end;gap:4px;height:100%;padding-top:10px}
-.bar-tip{position:absolute;top:-32px;left:50%;transform:translateX(-50%);background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:4px 8px;font-family:var(--mono);font-size:10px;white-space:nowrap;z-index:5;pointer-events:none;opacity:0;transition:opacity .2s;line-height:1.5;text-align:center}
+.bar-tip{position:absolute;left:50%;transform:translateX(-50%);background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:4px 8px;font-family:var(--mono);font-size:10px;white-space:nowrap;z-index:5;pointer-events:none;opacity:0;transition:opacity .2s;line-height:1.5;text-align:center}
 .bar-tip.show{opacity:1}
 .bar-tip .tip-exp{color:var(--expense)}.bar-tip .tip-inc{color:var(--income)}
 .cb-wrap{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;position:relative}
@@ -155,9 +156,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text-p);min-height
 .setting-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
 .setting-row:last-child{border-bottom:none}
 .setting-row:active{background:var(--bg-elevated)}
+.setting-row[style*="cursor:default"]{cursor:default;-webkit-tap-highlight-color:transparent}
+.setting-row[style*="cursor:default"]:active{background:transparent}
 .setting-label{font-size:14px}
 .theme-opts{display:flex;gap:4px;background:var(--bg-elevated);border-radius:8px;padding:3px}
-.theme-opt{padding:6px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:none;background:none;color:var(--text-s);font-family:var(--font);transition:all .15s}
+.theme-opt{padding:6px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:none;background:none;color:var(--text-s);font-family:var(--font);transition:color .2s,background .2s;user-select:none;-webkit-user-select:none}
+.theme-opt:active{transform:scale(.95)}
 .theme-opt.active{background:var(--bg-card);color:var(--text-p);box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .pie-toggle{display:flex;gap:1px;background:var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:12px}
 .pie-tog-btn{flex:1;padding:9px;text-align:center;font-size:12px;font-weight:500;cursor:pointer;background:var(--bg-card);color:var(--text-s);border:none;font-family:var(--font);transition:all .2s}
@@ -346,20 +350,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text-p);min-height
 <div class="modal" onclick="event.stopPropagation()">
   <div class="modal-handle"></div>
   <h2 id="asset-modal-title">添加资产</h2>
-  <select class="sel-input" id="asset-platform" onchange="onAssetPlatformChange()">
-    <option value="alipay">支付宝</option>
-    <option value="wechat">微信支付</option>
-    <option value="bank_cmb">招商银行</option>
-    <option value="bank_icbc">工商银行</option>
-    <option value="bank_abc">农业银行</option>
-    <option value="bank_boc">中国银行</option>
-    <option value="bank_ccb">建设银行</option>
-    <option value="cash">现金</option>
-    <option value="credit">信用卡</option>
-    <option value="invest">理财/基金</option>
-    <option value="custom">自定义</option>
-  </select>
-  <input type="text" class="txt-input" id="asset-custom-name" placeholder="自定义名称">
+  <input type="text" class="txt-input" id="asset-custom-name" placeholder="账户名称（如：支付宝、银行卡等）">
   <div style="margin-bottom:14px"><div style="font-size:12px;color:var(--text-s);margin-bottom:8px">选择图标</div><div class="icon-grid" id="asset-icon-grid"></div></div>
   <div class="input-wrap"><span class="sym">¥</span><input type="number" class="amt-input" id="asset-amount" placeholder="0.00" step="0.01" inputmode="decimal"></div>
   <button class="sub-btn" id="asset-save-btn" onclick="saveAsset()">保存</button>
@@ -918,12 +909,30 @@ function togglePie(label,type,btn){
 
 // Bar click: show/hide income/expense tooltip
 function showBarTip(el){
-  // Hide all other tips first
   el.closest('.chart-bars').querySelectorAll('.bar-tip.show').forEach(t=>{if(t!==el.querySelector('.bar-tip'))t.classList.remove('show')});
   const tip=el.querySelector('.bar-tip');
-  if(tip)tip.classList.toggle('show');
+  if(!tip)return;
+  const bars=el.querySelectorAll('.cb');
+  let maxH=0;
+  bars.forEach(b=>{maxH=Math.max(maxH,b.offsetHeight)});
+  tip.style.top=(el.offsetHeight-maxH-tip.offsetHeight-4)+'px';
+  tip.classList.toggle('show');
 }
 function hideBarTip(el){
+  const tip=el.querySelector('.bar-tip');
+  if(tip)tip.classList.remove('show');
+}
+// Asset chart bar tooltip
+function showAssetBarTip(el){
+  el.closest('.chart-bars').querySelectorAll('.bar-tip.show').forEach(t=>{if(t!==el.querySelector('.bar-tip'))t.classList.remove('show')});
+  const tip=el.querySelector('.bar-tip');
+  if(!tip)return;
+  const bar=el.querySelector('.cb');
+  const barH=bar?bar.offsetHeight:0;
+  tip.style.top=(el.offsetHeight-barH-tip.offsetHeight-4)+'px';
+  tip.classList.toggle('show');
+}
+function hideAssetBarTip(el){
   const tip=el.querySelector('.bar-tip');
   if(tip)tip.classList.remove('show');
 }
@@ -954,16 +963,22 @@ function showCategoryRecords(pLabel,type,cid){
 // ═══════════════════════════════
 function initSwipe(){
   const wrap=document.getElementById('swipe-wrap'),track=document.getElementById('swipe-track');
-  let sx=0,dx=0,sw=false;
-  const THRESHOLD=0.35; // 35% instead of 20% - much less sensitive
-  function onS(x){sx=x;sw=true;dx=0;track.style.transition='none'}
-  function onM(x){if(!sw)return;dx=x-sx;track.style.transform=`translateX(${-swipeIdx*100+dx/wrap.clientWidth*100}%)`}
-  function onE(){if(!sw)return;sw=false;track.style.transition='transform .35s cubic-bezier(.22,1,.36,1)';const n=getPeriods().length;if(dx<-wrap.clientWidth*THRESHOLD&&swipeIdx<n-1)swipeIdx++;else if(dx>wrap.clientWidth*THRESHOLD&&swipeIdx>0)swipeIdx--;dx=0;track.style.transform=`translateX(-${swipeIdx*100}%)`;const ps=getPeriods();document.getElementById('swipe-lbl').textContent=ps[swipeIdx]?.label||'';document.querySelectorAll('.swipe-dot').forEach((d,i)=>d.className='swipe-dot'+(i===swipeIdx?' active':''))}
-  wrap.addEventListener('touchstart',e=>onS(e.touches[0].clientX),{passive:true});
-  wrap.addEventListener('touchmove',e=>onM(e.touches[0].clientX),{passive:true});
+  let sx=0,sy=0,dx=0,sw=false,isH=null;
+  const THRESHOLD=0.35,DIR_THRESH=10;
+  function onS(x,y){sx=x;sy=y;sw=true;dx=0;isH=null}
+  function onM(x,y){
+    if(!sw)return;
+    const mx=x-sx,my=y-sy;
+    if(isH===null&&(Math.abs(mx)>DIR_THRESH||Math.abs(my)>DIR_THRESH)){isH=Math.abs(mx)>Math.abs(my)}
+    if(!isH)return;
+    dx=mx;track.style.transition='none';track.style.transform=`translateX(${-swipeIdx*100+dx/wrap.clientWidth*100}%)`
+  }
+  function onE(){if(!sw)return;sw=false;track.style.transition='transform .35s cubic-bezier(.22,1,.36,1)';if(isH){const n=getPeriods().length;if(dx<-wrap.clientWidth*THRESHOLD&&swipeIdx<n-1)swipeIdx++;else if(dx>wrap.clientWidth*THRESHOLD&&swipeIdx>0)swipeIdx--}dx=0;isH=null;track.style.transform=`translateX(-${swipeIdx*100}%)`;const ps=getPeriods();document.getElementById('swipe-lbl').textContent=ps[swipeIdx]?.label||'';document.querySelectorAll('.swipe-dot').forEach((d,i)=>d.className='swipe-dot'+(i===swipeIdx?' active':''))}
+  wrap.addEventListener('touchstart',e=>onS(e.touches[0].clientX,e.touches[0].clientY),{passive:true});
+  wrap.addEventListener('touchmove',e=>onM(e.touches[0].clientX,e.touches[0].clientY),{passive:true});
   wrap.addEventListener('touchend',onE,{passive:true});
-  wrap.addEventListener('mousedown',e=>onS(e.clientX));
-  wrap.addEventListener('mousemove',e=>{if(sw)onM(e.clientX)});
+  wrap.addEventListener('mousedown',e=>onS(e.clientX,e.clientY));
+  wrap.addEventListener('mousemove',e=>{if(sw)onM(e.clientX,e.clientY)});
   wrap.addEventListener('mouseup',onE);
 }
 
@@ -981,12 +996,17 @@ function getAssetMonths(){
 function initAssetSwipe(){
   const el=document.getElementById('assets-content');
   if(!el)return;
-  let sx=0,dx=0,sw=false;
-  el.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sw=true;dx=0},{passive:true});
-  el.addEventListener('touchmove',e=>{if(!sw)return;dx=e.touches[0].clientX-sx},{passive:true});
+  let sx=0,sy=0,dx=0,sw=false,isH=null;
+  el.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;sw=true;dx=0;isH=null},{passive:true});
+  el.addEventListener('touchmove',e=>{
+    if(!sw)return;
+    const mx=e.touches[0].clientX-sx,my=e.touches[0].clientY-sy;
+    if(isH===null&&(Math.abs(mx)>10||Math.abs(my)>10)){isH=Math.abs(mx)>Math.abs(my)}
+    if(isH){dx=mx}
+  },{passive:true});
   el.addEventListener('touchend',()=>{if(!sw)return;sw=false;
-    if(assetViewMonth&&dx<-60)assetNavNext();else if(assetViewMonth&&dx>60)assetNavPrev();
-    dx=0},{passive:true});
+    if(isH&&assetViewMonth&&dx<-60)assetNavNext();else if(isH&&assetViewMonth&&dx>60)assetNavPrev();
+    dx=0;isH=null},{passive:true});
 }
 
 function assetNavPrev(){
@@ -1082,6 +1102,11 @@ function renderAssets(){
   document.getElementById('asset-title').textContent=`${am}月资产`;
   document.getElementById('asset-month-label').textContent=`${ay}年${am}月 · 滑动切换`;
 
+  // Fade in animation
+  const content=document.getElementById('assets-content');
+  content.style.opacity='0';content.style.transform='translateY(12px)';
+  requestAnimationFrame(()=>{content.style.transition='opacity .3s ease,transform .3s ease';content.style.opacity='1';content.style.transform='translateY(0)'});
+
   let html=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
     <button class="qbtn" style="flex:0;padding:10px 14px" onclick="assetViewMonth=null;renderAssets()">← 返回</button>
     <div style="flex:1"></div>
@@ -1122,7 +1147,7 @@ function renderAssetChart(months){
       pctColor=pctChange>=0?'var(--income)':'var(--expense)';
     }
     const isActive=b.month===assetViewMonth;
-    html+=`<div class="cb-wrap at-bar-wrap" style="cursor:pointer" onclick="assetViewMonth='${b.month}';renderAssets()">${pctStr?`<div class="at-pct" style="color:${pctColor}">${pctStr}</div>`:''}<div class="cb" style="height:${h}%;background:var(--accent);opacity:${isActive?1:.5}"></div><div class="cb-l" style="${isActive?'color:var(--accent);font-weight:600':''}">${b.label}</div></div>`;
+    html+=`<div class="cb-wrap at-bar-wrap" onclick="showAssetBarTip(this)" onmouseleave="hideAssetBarTip(this)"><div class="bar-tip"><div style="font-weight:500">¥${b.val.toFixed(0)}</div></div>${pctStr?`<div class="at-pct" style="color:${pctColor}">${pctStr}</div>`:''}<div class="cb" style="height:${h}%;background:var(--accent);opacity:${isActive?1:.5}"></div><div class="cb-l" style="${isActive?'color:var(--accent);font-weight:600':''}">${b.label}</div></div>`;
   });
   html+='</div></div>';
   container.innerHTML=html;
@@ -1142,13 +1167,7 @@ function changeAssetIcon(idx){
 }
 
 // Asset modal with icon picker
-let assetIconVal='💙';
-function onAssetPlatformChange(){
-  const p=document.getElementById('asset-platform').value;
-  document.getElementById('asset-custom-name').style.display=p==='custom'?'block':'none';
-  assetIconVal=P_ICONS[p]||'💰';
-  renderIconPicker('asset-icon-grid',ASSET_ICONS,assetIconVal,v=>{assetIconVal=v});
-}
+let assetIconVal='💰';
 
 function openAssetModal(){
   editingAssetIdx=-1;
@@ -1157,10 +1176,9 @@ function openAssetModal(){
   document.getElementById('asset-del-btn').style.display='none';
   document.getElementById('modal-asset').classList.add('show');
   document.getElementById('asset-amount').value='';document.getElementById('asset-custom-name').value='';
-  document.getElementById('asset-platform').value='alipay';
-  assetIconVal='💙';
+  assetIconVal='💰';
   renderIconPicker('asset-icon-grid',ASSET_ICONS,assetIconVal,v=>{assetIconVal=v});
-  setTimeout(()=>document.getElementById('asset-amount').focus(),350);
+  setTimeout(()=>document.getElementById('asset-custom-name').focus(),350);
 }
 
 function editAsset(idx){
@@ -1171,26 +1189,25 @@ function editAsset(idx){
   document.getElementById('asset-save-btn').textContent='更新';
   document.getElementById('asset-del-btn').style.display='block';
   document.getElementById('modal-asset').classList.add('show');
-  document.getElementById('asset-platform').value=a.platform;
   document.getElementById('asset-custom-name').value=a.name;
   document.getElementById('asset-amount').value=a.amount;
-  assetIconVal=a.icon||P_ICONS[a.platform]||'💰';
+  assetIconVal=a.icon||'💰';
   renderIconPicker('asset-icon-grid',ASSET_ICONS,assetIconVal,v=>{assetIconVal=v});
-  setTimeout(()=>document.getElementById('asset-amount').focus(),350);
+  setTimeout(()=>document.getElementById('asset-custom-name').focus(),350);
 }
 
 function saveAsset(){
-  const platform=document.getElementById('asset-platform').value;
-  const name=document.getElementById('asset-custom-name').value.trim()||(P_NAMES[platform]||platform);
+  const name=document.getElementById('asset-custom-name').value.trim();
+  if(!name)return;
   const amount=parseFloat(document.getElementById('asset-amount').value);
   if(isNaN(amount)||!assetViewMonth)return;
   const month=assetViewMonth;
   let asset=DB.assets.find(a=>a.month===month);
   if(!asset){asset={id:genId(),month,accounts:[]};DB.assets.push(asset)}
   if(editingAssetIdx>=0&&asset.accounts[editingAssetIdx]){
-    Object.assign(asset.accounts[editingAssetIdx],{platform,name,icon:assetIconVal,amount});
+    Object.assign(asset.accounts[editingAssetIdx],{name,icon:assetIconVal,amount});
   }else{
-    asset.accounts.push({platform,name,icon:assetIconVal,amount});
+    asset.accounts.push({name,icon:assetIconVal,amount});
   }
   editingAssetIdx=-1;saveDB();
   document.getElementById('modal-asset').classList.remove('show');renderAssets();
@@ -1304,7 +1321,8 @@ function showSubpage(id){
 // Appearance subpage
 function renderAppearance(){
   let html=`<div class="card"><div class="card-t">主题</div>
-    <div class="setting-row"><span class="setting-label">主题模式</span>
+    <div class="setting-row" style="cursor:default">
+      <span class="setting-label">主题模式</span>
       <div class="theme-opts">
         <button class="theme-opt${DB.theme==='auto'?' active':''}" data-t="auto" onclick="applyTheme('auto')">自动</button>
         <button class="theme-opt${DB.theme==='light'?' active':''}" data-t="light" onclick="applyTheme('light')">白色</button>
