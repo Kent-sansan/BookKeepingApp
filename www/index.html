@@ -86,7 +86,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text-p);min-height
 .leg-i{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-s)}
 .leg-d{width:8px;height:8px;border-radius:2px}
 .pie-wrap{display:flex;align-items:center;gap:16px;margin:10px 0}
-.pie-svg{width:120px;height:120px;flex-shrink:0}
+.pie-svg{width:100%;max-width:300px;height:auto;flex-shrink:0}
 .pie-svg circle{transition:stroke-dasharray .5s cubic-bezier(.22,1,.36,1),stroke-dashoffset .5s cubic-bezier(.22,1,.36,1)}
 .pie-legend{flex:1;font-size:12px;max-height:160px;overflow-y:auto}
 .pie-legend-item{display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;border-radius:6px;padding:6px 4px;transition:background .15s}
@@ -106,9 +106,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text-p);min-height
 .tab-bar{display:flex;gap:1px;background:var(--border);border-radius:var(--radius-sm);overflow:hidden;margin:0 16px 14px}
 .tab-btn{flex:1;padding:11px;text-align:center;font-size:13px;font-weight:500;cursor:pointer;background:var(--bg-card);color:var(--text-s);border:none;font-family:var(--font);transition:all .2s}
 .tab-btn.active{background:var(--bg-elevated);color:var(--text-p)}
-.swipe-wrap{flex:1;overflow:hidden;position:relative}
-.swipe-track{display:flex;transition:transform .35s cubic-bezier(.22,1,.36,1);will-change:transform;height:100%}
-.swipe-panel{min-width:100%;flex-shrink:0;padding:0 0 20px;overflow-y:auto}
+.swipe-wrap{position:relative;overflow:hidden}
+.swipe-track{display:flex;transition:transform .35s cubic-bezier(.22,1,.36,1);will-change:transform}
+.swipe-panel{min-width:100%;flex-shrink:0;padding:0 0 20px}
 .swipe-nav{display:flex;align-items:center;justify-content:center;gap:4px;padding:10px 16px 8px;user-select:none}
 .swipe-nav-btn{width:32px;height:32px;border-radius:50%;border:none;background:var(--bg-elevated);color:var(--text);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,opacity .15s;-webkit-tap-highlight-color:transparent}
 .swipe-nav-btn:active{background:var(--border)}
@@ -247,13 +247,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--text-p);min-height
 </div>
 
 <div class="page" id="p-report">
-  <div class="header"><h1>报表</h1><div class="header-sub">滑动切换时间范围</div></div>
+  <div class="header"><h1 id="rpt-title">报表</h1><div class="header-sub" id="rpt-sub">滑动切换时间范围</div></div>
+  <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch" id="rpt-scroll">
   <div class="tab-bar" id="rpt-tabs">
     <button class="tab-btn active" onclick="setRptMode('month')">月度报表</button>
     <button class="tab-btn" onclick="setRptMode('year')">年度报表</button>
   </div>
   <div class="swipe-nav" id="swipe-nav"><button class="swipe-nav-btn" onclick="navSwipe(-1)">‹</button><div class="swipe-nav-lbl" id="swipe-lbl"></div><button class="swipe-nav-btn" onclick="navSwipe(1)">›</button></div>
   <div class="swipe-wrap" id="swipe-wrap"><div class="swipe-track" id="swipe-track"></div></div>
+  </div>
 </div>
 
 <div class="page" id="p-assets">
@@ -745,8 +747,10 @@ function editRecord(id){
   document.getElementById('m-title').textContent='编辑记录';
   document.getElementById('inp-amt').value=r.amount;
   document.getElementById('inp-note').value=r.note||'';
-  document.getElementById('inp-date').value=r.date;
-  const [y,m,d]=r.date.split('-');
+  // Normalize date separator: support both '-' and '/'
+  const normDate=r.date.replace(/\//g,'-');
+  document.getElementById('inp-date').value=normDate;
+  const [y,m,d]=normDate.split('-');
   document.getElementById('date-display-text').textContent=`${y}年${parseInt(m)}月${parseInt(d)}日`;
   document.getElementById('save-btn').textContent='更新';
   document.getElementById('del-btn').style.display='block';
@@ -844,8 +848,8 @@ function getPeriods(){
     return[{label:y+'年',year:y,title:y+'年'}];
   }
   // 统一提取 YYYY-MM 或 YYYY，兼容 2023/5/1 和 2023-05-01 两种格式
-  function ymKey(d){var dt=new Date(d);if(isNaN(dt))return null;return dt.getFullYear()+'-'+S(dt.getMonth()+1)}
-  function yrKey(d){var dt=new Date(d);if(isNaN(dt))return null;return String(dt.getFullYear())}
+  function ymKey(d){var dt=new Date((d||'').replace(/\//g,'-'));if(isNaN(dt))return null;return dt.getFullYear()+'-'+S(dt.getMonth()+1)}
+  function yrKey(d){var dt=new Date((d||'').replace(/\//g,'-'));if(isNaN(dt))return null;return String(dt.getFullYear())}
   if(rptMode==='month'){
     var set={};
     DB.records.forEach(function(r){var k=ymKey(r.date);if(k)set[k]=1});
@@ -861,17 +865,23 @@ function getPeriods(){
 }
 function getPeriodRecs(p){
   if(rptMode==='month'){
-    return DB.records.filter(function(r){var dt=new Date(r.date);if(isNaN(dt))return false;return dt.getFullYear()+'-'+S(dt.getMonth()+1)===p.ym});
+    return DB.records.filter(function(r){var d=(r.date||'').replace(/\//g,'-');var dt=new Date(d);if(isNaN(dt))return false;return dt.getFullYear()+'-'+S(dt.getMonth()+1)===p.ym});
   }
-  return DB.records.filter(function(r){var dt=new Date(r.date);if(isNaN(dt))return false;return dt.getFullYear()===p.year});
+  return DB.records.filter(function(r){var d=(r.date||'').replace(/\//g,'-');var dt=new Date(d);if(isNaN(dt))return false;return dt.getFullYear()===p.year});
 }
 
 function renderReport(){
-  const ps=getPeriods();if(swipeIdx>=ps.length)swipeIdx=ps.length-1;
-  document.getElementById('swipe-lbl').textContent=ps[swipeIdx]?.label||'';
+  const ps=getPeriods();
+  // Default to latest (last) period on first open or when periods change
+  if(swipeIdx>=ps.length||swipeIdx<0)swipeIdx=ps.length-1;
+  const cur=ps[swipeIdx];
+  document.getElementById('rpt-title').textContent=rptMode==='month'?'月度报表':'年度报表';
+  document.getElementById('rpt-sub').textContent=cur?.label||'';
+  document.getElementById('swipe-lbl').textContent=cur?.label||'';
   document.getElementById('swipe-track').innerHTML=ps.map(p=>buildPanel(p)).join('');
   document.getElementById('swipe-track').style.transform=`translateX(-${swipeIdx*100}%)`;
   updateNav(ps);
+  var sc=document.getElementById('rpt-scroll');if(sc)sc.scrollTop=0;
 }
 function updateNav(ps){
   ps=ps||getPeriods();
@@ -884,20 +894,73 @@ function navSwipe(dir){
   var ni=swipeIdx+dir;
   if(ni<0||ni>=ps.length)return;
   swipeIdx=ni;
-  document.getElementById('swipe-lbl').textContent=ps[swipeIdx]?.label||'';
+  const cur=ps[swipeIdx];
+  document.getElementById('rpt-title').textContent=rptMode==='month'?'月度报表':'年度报表';
+  document.getElementById('rpt-sub').textContent=cur?.label||'';
+  document.getElementById('swipe-lbl').textContent=cur?.label||'';
   document.getElementById('swipe-track').style.transform=`translateX(-${swipeIdx*100}%)`;
   updateNav(ps);
+  var sc=document.getElementById('rpt-scroll');if(sc)sc.scrollTop=0;
 }
 
 function makePie(mainCats,total){
-  if(total<=0)return'<svg class="pie-svg" viewBox="0 0 120 120"><circle cx="60" cy="60" r="50" fill="none" stroke="var(--bg-elevated)" stroke-width="16"/></svg>';
-  const circ=2*Math.PI*50;let offset=0,arcs='';
+  if(total<=0)return'<svg class="pie-svg" viewBox="0 0 300 220"><circle cx="150" cy="110" r="55" fill="var(--bg-elevated)"/><text x="150" y="106" text-anchor="middle" fill="var(--text-m)" font-size="11">暂无数据</text></svg>';
+  const cx=150,cy=110,r=55;
+  const labelX_r=cx+80,labelX_l=cx-80; // x position for right/left labels
+  const W=300,H=220;
+  let startA=-Math.PI/2,slices='';
+  const items=[];
   mainCats.forEach(([cid,val])=>{
-    const pct=val/total;const dash=circ*pct;const col=catColor(cid);
-    arcs+=`<circle cx="60" cy="60" r="50" fill="none" stroke="${col}" stroke-width="16" stroke-dasharray="${dash} ${circ-dash}" stroke-dashoffset="${-offset}" transform="rotate(-90 60 60)"/>`;
-    offset+=dash;
+    const pct=val/total;const sweep=pct*Math.PI*2;const mid=startA+sweep/2;const col=catColor(cid);
+    const c=findCat('expense',cid)||findCat('income',cid);
+    const endA=startA+sweep;
+    const x1=cx+r*Math.cos(startA),y1=cy+r*Math.sin(startA);
+    const x2=cx+r*Math.cos(endA),y2=cy+r*Math.sin(endA);
+    const big=sweep>Math.PI?1:0;
+    slices+=`<path d="M${cx},${cy} L${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${big} 1 ${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="${col}" opacity="0.85" stroke="var(--bg-card)" stroke-width="1.5"/>`;
+    items.push({cid,pct,col,mid,name:(c?.icon||'')+(c?.label||cid)});
+    startA=endA;
   });
-  return`<svg class="pie-svg" viewBox="0 0 120 120">${arcs}<circle cx="60" cy="60" r="42" fill="var(--bg-card)"/><text x="60" y="56" text-anchor="middle" fill="var(--text-s)" font-size="10">合计</text><text x="60" y="72" text-anchor="middle" fill="var(--text-p)" font-family="var(--mono)" font-size="14" font-weight="500">${total.toFixed(0)}</text></svg>`;
+  // Split left/right by angle
+  const right=[],left=[];
+  items.forEach(it=>{if(Math.cos(it.mid)>=0)right.push(it);else left.push(it)});
+  // Resolve overlaps: map angles to even y-positions within available height
+  const pad=20,minY=pad,maxY=H-pad;
+  function distributeY(arr){
+    if(!arr.length)return;
+    arr.sort((a,b)=>a.mid-b.mid);
+    // Map each label's angle to a y position, then resolve overlaps
+    arr.forEach(it=>{it.y=cy+r*Math.sin(it.mid)});
+    const gap=16;
+    for(var pass=0;pass<10;pass++){
+      for(var i=1;i<arr.length;i++){
+        var diff=arr[i].y-arr[i-1].y;
+        if(diff<gap){var s=(gap-diff)/2;arr[i-1].y-=s;arr[i].y+=s}
+      }
+    }
+    // Clamp to bounds
+    arr.forEach(it=>{it.y=Math.max(minY+8,Math.min(maxY-8,it.y))});
+  }
+  distributeY(right);distributeY(left);
+  // Draw leader lines and labels
+  let lines='',labels='';
+  items.forEach(it=>{
+    var isRight=Math.cos(it.mid)>=0;
+    var ex=cx+(r+6)*Math.cos(it.mid),ey=cy+(r+6)*Math.sin(it.mid);
+    var lx=isRight?labelX_r:labelX_l;
+    var ly=it.y;
+    // Elbow line: from slice edge → horizontal out → to label x
+    lines+=`<line x1="${ex.toFixed(1)}" y1="${ey.toFixed(1)}" x2="${lx.toFixed(1)}" y2="${ey.toFixed(1)}" stroke="${it.col}" stroke-width="1" opacity="0.5"/>`;
+    lines+=`<line x1="${lx.toFixed(1)}" y1="${ey.toFixed(1)}" x2="${lx.toFixed(1)}" y2="${ly.toFixed(1)}" stroke="${it.col}" stroke-width="1" opacity="0.5"/>`;
+    // Dot at label endpoint
+    lines+=`<circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="2.5" fill="${it.col}"/>`;
+    // Label text
+    var anchor=isRight?'start':'end';
+    var tx=isRight?lx+5:lx-5;
+    labels+=`<text x="${tx}" y="${ly+3.5}" text-anchor="${anchor}" fill="var(--text-p)" font-size="9" font-weight="500">${it.name}</text>`;
+    labels+=`<text x="${tx}" y="${ly+13}" text-anchor="${anchor}" fill="var(--text-m)" font-family="var(--mono)" font-size="7.5">${(it.pct*100).toFixed(1)}%</text>`;
+  });
+  return`<svg class="pie-svg" viewBox="0 0 ${W} ${H}" style="width:100%;max-width:300px;height:auto">${slices}${lines}${labels}<circle cx="${cx}" cy="${cy}" r="${r-14}" fill="var(--bg-card)"/><text x="${cx}" y="${cy-6}" text-anchor="middle" fill="var(--text-s)" font-size="9">合计</text><text x="${cx}" y="${cy+10}" text-anchor="middle" fill="var(--text-p)" font-family="var(--mono)" font-size="14" font-weight="500">${total.toFixed(0)}</text></svg>`;
 }
 
 function makePieLegend(mainCats,total,type,pLabel){
@@ -953,7 +1016,7 @@ function buildPanel(p){
 
   let catH=expSorted.map(([cid,amount])=>{
     const pct=exp>0?((amount/exp)*100).toFixed(1):0;const c=findCat('expense',cid);
-    return`<div class="cat-row" onclick="showCategoryRecords('${p.label}','expense','${cid}')"><div class="ce">${c?.icon||'📌'}</div><div class="cn">${c?.label||cid}</div><div class="cat-bar-bg"><div class="cat-bar-fill" style="width:${pct}%;background:${catColor(cid)}"></div></div><div class="cp">${pct}%</div><div class="cv" style="color:var(--expense)">${amount.toFixed(0)}</div></div>`;
+    return`<div class="cat-row" onclick="showCategoryRecords('${p.label}','expense','${cid}')"><div class="pie-legend-dot" style="background:${catColor(cid)};width:10px;height:10px;border-radius:3px;flex-shrink:0;margin-right:8px"></div><div class="ce">${c?.icon||'📌'}</div><div class="cn">${c?.label||cid}</div><div class="cat-bar-bg"><div class="cat-bar-fill" style="width:${pct}%;background:${catColor(cid)}"></div></div><div class="cp">${pct}%</div><div class="cv" style="color:var(--expense)">${amount.toFixed(0)}</div></div>`;
   }).join('');
 
   const balTag=bal>=0?'<span class="tag tag-up">盈余</span>':'<span class="tag tag-down">超支</span>';
@@ -979,7 +1042,6 @@ function buildPanel(p){
         <button class="pie-tog-btn" onclick="togglePie('${p.label}','income',this)">收入</button>
       </div>
       <div id="pie-body-${p.label}">
-        <div class="pie-wrap">${makePie(expSorted,exp)}<div class="pie-legend">${makePieLegend(expSorted,exp,'expense',p.label)}</div></div>
         ${catH}
       </div>
     </div>
@@ -1000,10 +1062,10 @@ function togglePie(label,type,btn){
 
   let catH=sorted.map(([cid,amount])=>{
     const pct=total>0?((amount/total)*100).toFixed(1):0;const c=findCat(type,cid);
-    return`<div class="cat-row" onclick="showCategoryRecords('${label}','${type}','${cid}')"><div class="ce">${c?.icon||'📌'}</div><div class="cn">${c?.label||cid}</div><div class="cat-bar-bg"><div class="cat-bar-fill" style="width:${pct}%;background:${catColor(cid)}"></div></div><div class="cp">${pct}%</div><div class="cv" style="color:${type==='expense'?'var(--expense)':'var(--income)'}">${amount.toFixed(0)}</div></div>`;
+    return`<div class="cat-row" onclick="showCategoryRecords('${label}','${type}','${cid}')"><div class="pie-legend-dot" style="background:${catColor(cid)};width:10px;height:10px;border-radius:3px;flex-shrink:0;margin-right:8px"></div><div class="ce">${c?.icon||'📌'}</div><div class="cn">${c?.label||cid}</div><div class="cat-bar-bg"><div class="cat-bar-fill" style="width:${pct}%;background:${catColor(cid)}"></div></div><div class="cp">${pct}%</div><div class="cv" style="color:${type==='expense'?'var(--expense)':'var(--income)'}">${amount.toFixed(0)}</div></div>`;
   }).join('');
 
-  document.getElementById('pie-body-'+label).innerHTML=`<div class="pie-wrap">${makePie(sorted,total)}<div class="pie-legend">${makePieLegend(sorted,total,type,label)}</div></div>${catH}`;
+  document.getElementById('pie-body-'+label).innerHTML=`${catH}`;
 }
 
 // Bar click: show/hide income/expense tooltip
@@ -1072,7 +1134,7 @@ function initSwipe(){
     if(!isH)return;
     dx=mx;track.style.transition='none';track.style.transform=`translateX(${-swipeIdx*100+dx/wrap.clientWidth*100}%)`
   }
-  function onE(){if(!sw)return;sw=false;track.style.transition='transform .35s cubic-bezier(.22,1,.36,1)';if(isH){const n=getPeriods().length;if(dx<-wrap.clientWidth*THRESHOLD&&swipeIdx<n-1)swipeIdx++;else if(dx>wrap.clientWidth*THRESHOLD&&swipeIdx>0)swipeIdx--}dx=0;isH=null;track.style.transform=`translateX(-${swipeIdx*100}%)`;const ps=getPeriods();document.getElementById('swipe-lbl').textContent=ps[swipeIdx]?.label||'';updateNav(ps)}
+  function onE(){if(!sw)return;sw=false;track.style.transition='transform .35s cubic-bezier(.22,1,.36,1)';const prevIdx=swipeIdx;if(isH){const n=getPeriods().length;if(dx<-wrap.clientWidth*THRESHOLD&&swipeIdx<n-1)swipeIdx++;else if(dx>wrap.clientWidth*THRESHOLD&&swipeIdx>0)swipeIdx--}dx=0;isH=null;track.style.transform=`translateX(-${swipeIdx*100}%)`;const ps=getPeriods();const cur=ps[swipeIdx];document.getElementById('rpt-title').textContent=rptMode==='month'?'月度报表':'年度报表';document.getElementById('rpt-sub').textContent=cur?.label||'';document.getElementById('swipe-lbl').textContent=cur?.label||'';updateNav(ps);if(swipeIdx!==prevIdx){var sc=document.getElementById('rpt-scroll');if(sc)sc.scrollTop=0}}
   wrap.addEventListener('touchstart',e=>onS(e.touches[0].clientX,e.touches[0].clientY),{passive:true});
   wrap.addEventListener('touchmove',e=>onM(e.touches[0].clientX,e.touches[0].clientY),{passive:true});
   wrap.addEventListener('touchend',onE,{passive:true});
@@ -1236,11 +1298,13 @@ function renderAssetChart(months){
   if(bars.length===0){container.innerHTML='<div class="empty-text" style="text-align:center;color:var(--text-m);padding:16px">暂无数据</div>';return}
   const mx=Math.max(...bars.map(v=>v.val),1);
   const mn=Math.min(...bars.map(v=>v.val));
-  const yRange=mx-mn||1;
-  const yTicks=[mx,(mn+yRange*0.75),(mn+yRange*0.5),(mn+yRange*0.25),mn].map(v=>v>=10000?(v/10000).toFixed(1)+'万':v>=1000?(v/1000).toFixed(0)+'k':Math.round(v));
+  const mid=(mx+mn)/2;
+  // Y-axis: max at top, midpoint in middle, min at bottom
+  const yTicks=[mx,mid,mn].map(v=>v>=10000?(v/10000).toFixed(1)+'万':v>=1000?(v/1000).toFixed(0)+'k':Math.round(v));
   let html=`<div class="chart-wrap" style="height:160px"><div class="chart-y">${yTicks.map(t=>`<span>${t}</span>`).join('')}</div><div class="chart-bars">`;
   bars.forEach((b,i)=>{
-    const h=Math.max((b.val-mn)/yRange*100,2);
+    // Bar height: min→50%, max→100%, centered around midpoint
+    const h=mn===mx?75:50+((b.val-mn)/(mx-mn))*50;
     const isActive=b.month===assetViewMonth;
     html+=`<div class="cb-wrap at-bar-wrap" onclick="showAssetBarTip(this)" onmouseleave="hideAssetBarTip(this)"><div class="bar-tip"><div style="font-weight:500">¥${b.val.toFixed(0)}</div></div><div class="cb" style="height:${h}%;background:var(--accent);opacity:${isActive?1:.5}"></div><div class="cb-l" style="${isActive?'color:var(--accent);font-weight:600':''}">${b.label}</div></div>`;
   });
@@ -1848,7 +1912,11 @@ function saveFile(content,filename,mime){
     if(Fs&&Sh){
       Fs.writeFile({path:filename,data:content,directory:'Cache',encoding:'utf8'})
         .then(function(r){return Sh.share({title:filename,text:'导出文件',url:r.uri})})
-        .catch(function(e){alert('导出失败: '+e.message)});
+        .catch(function(e){
+          var msg=e.message||'';
+          if(msg.indexOf('cancel')>-1||msg.indexOf('Cancel')>-1||msg.indexOf('Share canceled')>-1){return}
+          alert('导出失败: '+msg)
+        });
       return;
     }
   }
@@ -1894,17 +1962,40 @@ function doClearData(){
 // ═══════════════════════════════
 //  NAV
 // ═══════════════════════════════
+// Scroll-to-top helpers per page
+function smoothScrollTop(el,dur){
+  if(!el)return;dur=dur||300;
+  var start=el.scrollTop;if(start<=0)return;
+  var t0=null;
+  function step(ts){if(!t0)t0=ts;var p=Math.min((ts-t0)/dur,1);var ease=1-Math.pow(1-p,3);el.scrollTop=start*(1-ease);if(p<1)requestAnimationFrame(step)}
+  requestAnimationFrame(step);
+}
+function scrollTopAll(sel){
+  var el=document.querySelector(sel);
+  if(el)smoothScrollTop(el);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
 function nav(tab){
+  var tabPage=document.getElementById('p-'+tab);
+  // If tapping a tab while already active, scroll to top
+  if(tabPage&&tabPage.classList.contains('active')){
+    if(tab==='home'){window.scrollTo({top:0,behavior:'smooth'});return}
+    if(tab==='report'){scrollTopAll('#rpt-scroll');return}
+    if(tab==='assets'){scrollTopAll('#assets-content');return}
+    if(tab==='profile'){scrollTopAll('#profile-content');return}
+  }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.getElementById('p-'+tab).classList.add('active');
+  tabPage?.classList.add('active');
   document.querySelector(`.nav-item[data-tab="${tab}"]`)?.classList.add('active');
   // Reset subpages when switching tabs
   if(tab==='profile'){showSubpage(null);renderProfile()}
-  if(tab==='report')renderReport();
+  if(tab==='report'){const ps=getPeriods();swipeIdx=ps.length-1;renderReport()}
   if(tab==='assets'){assetViewMonth=null;renderAssets()}
-  if(tab==='home')renderHome();
+  if(tab==='home'){window.scrollTo({top:0});renderHome()}
 }
+
 function renderAll(){renderHome();renderAssets();renderProfile()}
 
 // ═══════════════════════════════
